@@ -11,6 +11,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Routes
+const inventoryRoutes = require("./src/routes/inventory");
+app.use("/inventory", inventoryRoutes);
+
 // Health check route
 app.get("/", (req, res) => {
   res.json({
