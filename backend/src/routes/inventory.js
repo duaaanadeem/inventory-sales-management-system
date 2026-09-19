@@ -18,14 +18,7 @@ try {
   try {
     pool = require('../config/db'); // Try default db if it's updated to pg
   } catch (err) {
-    // Mock pool to prevent crashes during initial setup
-    pool = {
-      connect: async () => ({
-        query: async () => ({ rows: [] }),
-        release: () => {}
-      }),
-      query: async () => ({ rows: [] })
-    };
+    throw new Error('Could not load DB config from ../config/pg-db or ../config/db — check the file exists and exports a pg Pool');
   }
 }
 
@@ -89,7 +82,14 @@ async function callStockChange(req, res, changeType, source, referenceId, qtyRaw
         
         // Catch unique-violation on reference_id (Postgres code 23505)
         if (err.code === '23505') {
-            return sendSuccess(res, { message: 'Already processed (idempotent via constraint)' });
+            try {
+                const currentResult = await pool.query('SELECT current_stock FROM inventory WHERE product_id = $1', [product_id]);
+                const new_stock = currentResult.rows.length ? currentResult.rows[0].current_stock : 0;
+                return sendSuccess(res, { message: 'Already processed (idempotent via constraint)', new_stock });
+            } catch (queryErr) {
+                console.error('Error fetching stock for idempotent response:', queryErr);
+                return sendError(res, 'Internal Server Error', 500);
+            }
         }
         
         console.error('apply_stock_change error:', err);

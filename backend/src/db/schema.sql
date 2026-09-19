@@ -39,7 +39,7 @@ CREATE TABLE stock_history (
   id                SERIAL PRIMARY KEY,
   product_id        INT NOT NULL REFERENCES products(id),
   change_type       stock_change_type NOT NULL,
-  qty               INT NOT NULL CHECK (qty > 0),
+  qty               INT NOT NULL CHECK (change_type = 'adjustment' OR qty > 0),
   previous_stock    INT NOT NULL,
   new_stock         INT NOT NULL,
   source            stock_source NOT NULL,
@@ -70,8 +70,12 @@ DECLARE
   v_current INT;
   v_new     INT;
 BEGIN
-  IF p_qty <= 0 THEN
+  IF p_change_type != 'adjustment' AND p_qty <= 0 THEN
     RAISE EXCEPTION 'qty must be positive, got %', p_qty;
+  END IF;
+
+  IF p_change_type = 'adjustment' AND p_qty = 0 THEN
+    RAISE EXCEPTION 'adjustment qty cannot be zero';
   END IF;
 
   SELECT current_stock INTO v_current
