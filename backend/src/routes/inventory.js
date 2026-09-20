@@ -124,7 +124,7 @@ router.post('/adjust', writeLimiter, (req, res) => {
 
 router.get('/current/:productId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT current_stock, min_stock_level FROM inventory WHERE product_id = $1', [req.params.productId]);
+        const result = await pool.query('SELECT i.current_stock, p.min_stock_level FROM inventory i JOIN products p ON p.id = i.product_id WHERE i.product_id = $1', [req.params.productId]);
         return sendSuccess(res, result.rows.length ? result.rows[0] : { current_stock: 0 });
     } catch (err) { 
         return sendError(res, 'Internal Server Error', 500); 
@@ -135,10 +135,11 @@ router.get('/summary', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
-                COUNT(*)::int as total_products, 
-                COALESCE(SUM(current_stock), 0)::int as total_stock_items,
-                COALESCE(SUM(CASE WHEN current_stock <= min_stock_level THEN 1 ELSE 0 END), 0)::int as low_stock_count
-            FROM inventory
+                COUNT(i.*)::int as total_products, 
+                COALESCE(SUM(i.current_stock), 0)::int as total_stock_items,
+                COALESCE(SUM(CASE WHEN i.current_stock <= p.min_stock_level THEN 1 ELSE 0 END), 0)::int as low_stock_count
+            FROM inventory i
+            JOIN products p ON p.id = i.product_id
         `);
         return sendSuccess(res, result.rows[0] || {});
     } catch (err) { 
@@ -176,7 +177,7 @@ router.get('/report', async (req, res) => {
 
 router.get('/low-stock', async (req, res) => {
     try {
-        const result = await pool.query('SELECT product_id, current_stock, min_stock_level FROM inventory WHERE current_stock <= min_stock_level');
+        const result = await pool.query('SELECT i.product_id, i.current_stock, p.min_stock_level FROM inventory i JOIN products p ON p.id = i.product_id WHERE i.current_stock <= p.min_stock_level');
         return sendSuccess(res, { low_stock_products: result.rows });
     } catch (err) { 
         return sendError(res, 'Internal Server Error', 500); 
