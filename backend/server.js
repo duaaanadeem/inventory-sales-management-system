@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-const inventoryRoutes = require("./src/routes/inventory");
+const inventoryRoutes = require("./src/features/inventory/inventory.routes");
 app.use("/inventory", inventoryRoutes);
 
 // Health check route
