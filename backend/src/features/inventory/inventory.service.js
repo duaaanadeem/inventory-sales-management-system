@@ -37,19 +37,20 @@ async function applyStockChangeService({ product_id, qty, changeType, source, re
         
         // Catch unique-violation on reference_id (Postgres code 23505)
         if (err.code === '23505') {
+            let new_stock = 0;
             try {
                 const currentResult = await pool.query('SELECT current_stock FROM inventory WHERE product_id = $1', [product_id]);
-                const new_stock = currentResult.rows.length ? currentResult.rows[0].current_stock : 0;
-                const error = new Error('Already processed (idempotent via constraint)');
-                error.statusCode = 200;
-                error.data = { message: 'Already processed (idempotent via constraint)', new_stock };
-                throw error;
+                new_stock = currentResult.rows.length ? currentResult.rows[0].current_stock : 0;
             } catch (queryErr) {
                 console.error('Error fetching stock for idempotent response:', queryErr);
                 const error = new Error('Internal Server Error');
                 error.statusCode = 500;
                 throw error;
             }
+            const error = new Error('Already processed (idempotent via constraint)');
+            error.statusCode = 200;
+            error.data = { message: 'Already processed (idempotent via constraint)', new_stock };
+            throw error;
         }
         
         console.error('apply_stock_change error:', err);
