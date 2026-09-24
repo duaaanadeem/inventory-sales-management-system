@@ -1,0 +1,46 @@
+"use client";
+import { Bell, User, Search } from "lucide-react";
+
+export default function Header() {
+  return (
+    <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
+      <div className="container-responsive py-3 sm:py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="lg:hidden w-10" />
+
+          <div className="hidden sm:flex flex-1 max-w-md">
+            <div className="relative w-full">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                placeholder="Search products, customers..."
+                className="input pl-10 bg-slate-50 border-slate-200"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              className="relative p-2.5 rounded-lg hover:bg-slate-100 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600"
+              aria-label="Notifications"
+            >
+              <Bell size={20} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
+            </button>
+            <button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 min-h-[44px]">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                <User size={18} className="text-white" />
+              </div>
+              <span className="hidden md:block text-sm font-medium text-slate-700">
+                Admin
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
