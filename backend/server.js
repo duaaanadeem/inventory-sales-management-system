@@ -11,6 +11,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Routes
+
+const dashboardRoutes = require("./src/features/dashboard/dashboard.routes");
+app.use("/dashboard", dashboardRoutes);
+
+
 // Health check route
 app.get("/", (req, res) => {
   res.json({
