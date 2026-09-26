@@ -134,8 +134,13 @@ CREATE TABLE stock_history (
 -- timeout, this prevents the SAME sale/purchase from deducting or adding
 -- stock twice. Partial index (WHERE reference_id IS NOT NULL) because
 -- manual adjustments have no reference_id and shouldn't collide on NULL.
+-- product_id MUST be part of the key: a single sale or purchase touches many
+-- products, and every one of those rows shares the same reference_id. Keying
+-- on (source, reference_id) alone would make the second line of any
+-- multi-item sale violate uniqueness. Ali's src/db/schema.sql uses the same
+-- three-column form.
 CREATE UNIQUE INDEX uniq_stock_history_ref
-  ON stock_history (source, reference_id)
+  ON stock_history (source, reference_id, product_id)
   WHERE reference_id IS NOT NULL;
 
 CREATE INDEX idx_stock_history_product ON stock_history (product_id);

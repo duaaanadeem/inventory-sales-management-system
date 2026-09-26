@@ -1,55 +1,105 @@
 # Sales / POS Module
 
+## Structure
 
-Open `http://localhost:5000/pos/`.
+Feature-based layout, matching Ali's inventory module so both merge cleanly:
 
-To add safe local demo records:
-
-```powershell
-npm run seed:demo
+```
+backend/src/features/sales/
+  sales.routes.js        route table + middleware chain
+  sales.controller.js    thin handlers, maps errors to HTTP via utils/response
+  sales.service.js       queries and the checkout transaction
+  sales.validation.js    request validation middleware
+  sales.calculations.js  pure money math (integer cents)
 ```
 
-The command prints a demo staff password and JWT. Store the printed JWT in browser `localStorage` as `accessToken` before using checkout or Sales History:
+Shared files (`src/config/db.js`, `src/utils/response.js`) are kept identical
+to the inventory module. Do not fork them — that is what caused the earlier
+merge conflict.
 
-```js
-localStorage.setItem('accessToken', '<printed JWT>')
-```
+## Configuration
 
-Set these values in `backend/.env`:
+`backend/.env`:
 
 ```env
 PORT=5000
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://user:password@localhost:5432/inventory_sales
 JWT_SECRET=the-shared-auth-secret
 TAX_RATE=0
 ```
 
-`DATABASE_URL` must include the database username and password, for example:
-
-```env
-DATABASE_URL=postgresql://postgres:your_password@localhost:5432/inventory_sales
-```
-
-Alternatively configure `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, and `PGPASSWORD`.
-
 `TAX_RATE=0` is temporary until the team confirms the business tax rule.
 
-## Authentication integration
+## Authentication
 
-Protected Sales requests expect the existing team's JWT in:
+Protected routes expect the shared team's JWT:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-The token payload must contain a user identifier in `id`, `userId`, or `sub`. The resolved identifier becomes `sales.staff_id`. The POS reads `accessToken` or `token` from `localStorage`.
+The token payload must carry a user identifier in `id`, `userId`, or `sub`.
+That identifier becomes `sales.staff_id`. `POST /api/sales` additionally
+requires the `admin` or `staff` role.
+
+`GET /api/sales/products/search` is currently unauthenticated so the POS can
+load the product list before login. Move it behind `authenticateUser` once the
+frontend flow is settled.
 
 ## API
 
-- `GET /api/sales/products/search?q=mouse` searches active products by name or SKU.
-- `POST /api/sales` completes a transaction using `customerId`, `paymentMethod`, `discount`, and `items`.
-- `GET /api/sales` returns Sales History.
-- `GET /api/sales/:id` returns a sale and its item snapshots.
-- `GET /api/sales/:id/invoice` returns the digital invoice data.
+| Method | Path                             | Auth  | Description                        |
+| ------ | -------------------------------- | ----- | ---------------------------------- |
+| GET    | `/api/sales/products/search?q=`  | none  | Search active products by name/SKU |
+| POST   | `/api/sales`                     | staff | Complete a sale                    |
+| GET    | `/api/sales`                     | user  | Sales history                      |
+| GET    | `/api/sales/:id`                 | user  | Sale detail with item snapshots    |
+| GET    | `/api/sales/:id/invoice`         | user  | Invoice data for a sale            |
 
-Checkout runs in one PostgreSQL transaction. It uses trusted product prices, stores historical `sale_items.unit_price`, calls `apply_stock_change()` for each item, creates an invoice, and rolls back if any step fails.
+Responses use the shared helper in `src/utils/response.js`:
+
+```json
+{ "success": true, "data": {} }
+{ "success": false, "error": "message" }
+```
+
+Error codes: `400` invalid input, `403` staff role required, `404` unknown
+sale or product, `409` insufficient stock or a database constraint violation,
+`500` unexpected.
+
+## Checkout
+
+`POST /api/sales` runs in one transaction on a single pooled connection
+(`pool.connect()`, then `BEGIN` / `COMMIT` / `ROLLBACK`, mirroring the
+inventory module). It:
+
+1. reads prices from the `products` table — the request body never supplies them
+2. stores a `sale_items.unit_price` snapshot, so past totals survive price changes
+3. calls `apply_stock_change(..., 'out', 'sale', saleId, staffId)` per line
+4. creates the invoice
+
+Any failure rolls the entire sale back, including the stock deductions.
+
+### Idempotency note
+
+All lines of one sale share `source = 'sale'` and `reference_id = <saleId>`.
+The unique index on `stock_history` must therefore be:
+
+```sql
+CREATE UNIQUE INDEX uniq_stock_history_ref
+  ON stock_history (source, reference_id, product_id)
+  WHERE reference_id IS NOT NULL;
+```
+
+Omitting `product_id` makes the second line of any multi-item sale fail with a
+unique violation. This is the form in Ali's `src/db/schema.sql` and in
+`docs/FULL_PROJECT_SCHEMA.sql`.
+
+## Not implemented yet
+
+- `GET /pos/` — `docs/` previously pointed at a POS page. There is no
+  `backend/public` directory and no `express.static` mount.
+- Seed script — no `scripts/seedDemoData.js`; the `seed:demo` npm script was
+  removed rather than left pointing at a missing file.
+- Automated tests — `npm test` runs `node --test` and `backend/test/` is empty.
+  `sales.calculations.js` and the checkout rollback path are the priorities.

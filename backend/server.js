@@ -5,15 +5,15 @@ dotenv.config();
 const express = require("express");
 const cors = require("cors");
 
-const salesRouter = require("./src/routes/sales");
-
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-app.use("/api/sales", salesRouter);
+// Routes
+const salesRoutes = require("./src/features/sales/sales.routes");
+app.use("/api/sales", salesRoutes);
 
 // Health check route
 app.get("/", (req, res) => {

@@ -1,12 +1,11 @@
-const requireStaff = (req, res, next) => {
-  if (!req.user || !["admin", "staff"].includes(req.user.role)) {
-    return res.status(403).json({
-      success: false,
-      message: "Staff access required"
-    });
-  }
+const { sendError } = require('../utils/response');
 
-  next();
+const requireStaff = (req, res, next) => {
+    if (!req.user || !['admin', 'staff'].includes(req.user.role)) {
+        return sendError(res, 'Staff access required', 403);
+    }
+
+    next();
 };
 
 module.exports = requireStaff;
