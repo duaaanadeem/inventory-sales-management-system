@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+@theme {
+  /* Breakpoints */
+  --breakpoint-xs: 375px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* Primary — Indigo */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+
+  /* Accent — Emerald (success / highlights) */
+  --color-accent-500: #10b981;
+  --color-accent-600: #059669;
+
+  /* Surface tokens */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-sidebar: #0f172a;
+  --color-sidebar-hover: #1e293b;
+  --color-border: #e2e8f0;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+}
+
+@layer components {
+  .container-responsive {
+    @apply w-full mx-auto px-3 sm:px-4 md:px-6 lg:px-8;
+  }
+
+  /* Card — soft shadow, subtle border */
+  .card {
+    @apply bg-white rounded-xl border border-slate-200/70 shadow-sm
+           p-3 sm:p-4 md:p-6;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium
+           transition-all focus:outline-none focus:ring-2 focus:ring-offset-2
+           min-h-[44px] px-4 py-2 text-sm sm:text-base
+           bg-primary-600 text-white shadow-sm
+           hover:bg-primary-700 hover:shadow
+           focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium
+           transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
+           min-h-[44px] px-4 py-2 text-sm sm:text-base
+           bg-slate-100 text-slate-700 border border-slate-200
+           hover:bg-slate-200 focus:ring-slate-400;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg font-medium
+           transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
+           min-h-[44px] px-4 py-2 text-sm sm:text-base
+           bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-500;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5
+           text-sm sm:text-base text-slate-900 placeholder:text-slate-400
+           focus:border-primary-500 focus:outline-none
+           focus:ring-2 focus:ring-primary-500/20
+           min-h-[44px] transition-colors;
+  }
+
+  .table-wrapper {
+    @apply w-full overflow-x-auto -mx-3 sm:mx-0;
+  }
+
+  .table-responsive {
+    @apply min-w-full divide-y divide-slate-200;
+  }
+
+  /* POS tile — big touch target */
+  .pos-touch {
+    @apply min-h-[56px] min-w-[56px] select-none
+           active:scale-95 transition-transform;
+  }
+}
