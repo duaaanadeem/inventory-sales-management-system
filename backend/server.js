@@ -15,6 +15,10 @@ app.use(express.json());
 const inventoryRoutes = require("./src/features/inventory/inventory.routes");
 app.use("/inventory", inventoryRoutes);
 
+const dashboardRoutes = require("./src/features/dashboard/dashboard.routes");
+app.use("/dashboard", dashboardRoutes);
+
+
 // Health check route
 app.get("/", (req, res) => {
   res.json({
