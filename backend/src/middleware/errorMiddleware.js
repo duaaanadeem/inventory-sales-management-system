@@ -1,7 +1,3 @@
-/**
- * errorMiddleware.js — single place that formats every error response.
- * Registered LAST in server.js (4 params = Express treats it as error handler).
- */
 const errorMiddleware = (err, req, res, next) => {
   console.error(err);
 

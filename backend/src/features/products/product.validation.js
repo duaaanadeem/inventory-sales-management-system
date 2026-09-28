@@ -1,8 +1,3 @@
-/**
- * product.validation.js — catches obviously-bad requests before they hit
- * the DB, so the client gets a clean 400 instead of a raw Postgres error.
- * Does NOT replace schema v3's CHECK constraints (defense in depth).
- */
 const {
   isNonEmptyString,
   isNonNegativeNumber,
@@ -43,8 +38,7 @@ const validateCreateProduct = (req, res, next) => {
   next();
 };
 
-// PUT /api/products/:id — all fields optional (partial update), but must
-// be valid if provided; at least one field (or a new image) is required.
+// PUT /api/products/:id (partial update)
 const validateUpdateProduct = (req, res, next) => {
   const { sku, name, price, cost, categoryId, minStockLevel } = req.body;
   const errors = [];

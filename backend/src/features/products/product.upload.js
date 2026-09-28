@@ -1,9 +1,3 @@
-/**
- * product.upload.js — multer config for product image uploads.
- * Frontend sends multipart/form-data (JSON can't carry binary files).
- * File is saved to disk under /uploads/products, we only store its
- * relative path in the DB (image_url column) — never the binary itself.
- */
 const multer = require("multer");
 const path = require("path");
 

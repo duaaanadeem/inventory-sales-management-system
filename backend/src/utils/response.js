@@ -1,9 +1,3 @@
-/**
- * response.js — keeps every success response in one shape:
- *   { success: true, data, ...pagination/message if given }
- * Errors are NOT handled here — they always go through errorMiddleware.js.
- */
-
 // 200/201 with data, optional pagination or extra fields (e.g. warning)
 const sendData = (res, statusCode, data, extra = {}) => {
   res.status(statusCode).json({ success: true, data, ...extra });

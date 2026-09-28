@@ -1,7 +1,3 @@
-/**
- * product.controller.js — HTTP layer only: read req, call service, send res.
- * No SQL here (that's product.service.js's job).
- */
 const { asyncHandler, parsePagination } = require("../../utils/helpers");
 const { sendData, sendMessage } = require("../../utils/response");
 const productService = require("./product.service");
@@ -34,8 +30,7 @@ const getProduct = asyncHandler(async (req, res) => {
   sendData(res, 200, product);
 });
 
-// POST /api/products (multipart/form-data). By this point
-// upload.single("image") + validateCreateProduct already ran (see routes).
+// POST /api/products (multipart/form-data)
 const createProduct = asyncHandler(async (req, res) => {
   const { sku, name, categoryId, price, cost, minStockLevel, openingStock } = req.body;
   const imageUrl = req.file ? `/uploads/products/${req.file.filename}` : null;

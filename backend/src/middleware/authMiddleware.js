@@ -1,13 +1,3 @@
-/**
- * authMiddleware.js — verifies the JWT sent in the "Authorization" header
- * and attaches the decoded user to req.user.
- *
- * STATUS: NOT yet applied to Products/Categories routes.
- * Confirmed with Ali: GET /api/products and GET /api/products/:id are
- * read-only, no auth required for now. This file exists so the Auth
- * teammate's module can plug in later, and so other routes can import it
- * as soon as write-protection (Admin-only create/edit/delete) is agreed.
- */
 const jwt = require("jsonwebtoken");
 
 const verifyToken = (req, res, next) => {
