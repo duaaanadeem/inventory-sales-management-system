@@ -1,11 +1,14 @@
-// 200/201 with data, optional pagination or extra fields (e.g. warning)
+const sendSuccess = (res, data = {}) => res.json({ success: true, data });
+
+const sendError = (res, error, status = 400) =>
+  res.status(status).json({ success: false, error });
+
 const sendData = (res, statusCode, data, extra = {}) => {
   res.status(statusCode).json({ success: true, data, ...extra });
 };
 
-// For actions with no data to return (e.g. delete)
 const sendMessage = (res, statusCode, message) => {
   res.status(statusCode).json({ success: true, message });
 };
 
-module.exports = { sendData, sendMessage };
+module.exports = { sendSuccess, sendError, sendData, sendMessage };
