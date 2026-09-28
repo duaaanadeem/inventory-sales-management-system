@@ -1,10 +1,3 @@
-/**
- * migrate.js — runs schema.sql against the database (schema v3).
- * Avoids manual copy-paste into pgAdmin (error-prone).
- *
- * Run from the backend folder:
- *   npm run migrate
- */
 const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
