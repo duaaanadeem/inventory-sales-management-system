@@ -12,6 +12,8 @@ import {
   Menu,
   X,
   Boxes,
+  Bell,
+  History,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +25,8 @@ const navItems = [
   { href: "/suppliers", label: "Suppliers", icon: Truck },
   { href: "/purchases", label: "Purchases", icon: FileText },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/activities", label: "Activity Log", icon: History },
 ];
 
 export default function Sidebar() {
