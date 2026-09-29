@@ -23,6 +23,12 @@ app.use("/inventory", inventoryRoutes);
 const dashboardRoutes = require("./src/features/dashboard/dashboard.routes");
 app.use("/dashboard", dashboardRoutes);
 
+const notificationRoutes = require("./src/features/notifications/notification.routes");
+app.use("/notifications", notificationRoutes);
+
+const activityRoutes = require("./src/features/activities/activity.routes");
+app.use("/activities", activityRoutes);
+
 const productRoutes = require("./src/features/products/product.routes");
 app.use("/api/products", productRoutes);
 
