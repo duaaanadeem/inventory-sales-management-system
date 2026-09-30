@@ -43,8 +43,6 @@ app.use("/api/categories", categoryRoutes);
 const salesRoutes = require("./src/features/sales/sales.routes");
 app.use("/api/sales", salesRoutes);
 
-const customerRoutes = require("./src/customers/customer.routes");
-app.use("/customers", customerRoutes);
 
 const supplierRoutes = require("./src/features/suppliers/supplier.routes");
 app.use("/api/suppliers", supplierRoutes);
