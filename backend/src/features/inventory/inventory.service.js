@@ -126,6 +126,17 @@ async function getLowStock() {
     const result = await pool.query('SELECT i.product_id, i.current_stock, p.min_stock_level FROM inventory i JOIN products p ON p.id = i.product_id WHERE i.current_stock <= p.min_stock_level');
     return { low_stock_products: result.rows };
 }
+async function getAllInventory() {
+    const result = await pool.query(`
+        SELECT 
+            p.id, p.name, p.sku, p.min_stock_level as min,
+            i.opening_stock as opening, i.stock_out as sold, i.damaged_stock as damaged, i.current_stock as current
+        FROM inventory i
+        JOIN products p ON p.id = i.product_id
+        ORDER BY p.name ASC
+    `);
+    return { inventory: result.rows };
+}
 
 module.exports = {
     deductStock,
@@ -136,5 +147,6 @@ module.exports = {
     getCurrentStock,
     getSummary,
     getReport,
-    getLowStock
+    getLowStock,
+    getAllInventory
 };

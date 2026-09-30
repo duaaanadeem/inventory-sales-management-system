@@ -133,6 +133,15 @@ const getLowStock = async (req, res) => {
     }
 };
 
+const getAllInventory = async (req, res) => {
+    try {
+        const result = await inventoryService.getAllInventory();
+        return sendSuccess(res, result);
+    } catch (error) {
+        return sendError(res, 'Internal Server Error', 500);
+    }
+};
+
 module.exports = {
     stockInManual,
     deductStock,
@@ -142,5 +151,6 @@ module.exports = {
     getCurrentStock,
     getSummary,
     getReport,
-    getLowStock
+    getLowStock,
+    getAllInventory
 };

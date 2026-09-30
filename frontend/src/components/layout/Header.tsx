@@ -101,6 +101,19 @@ export default function Header() {
     router.push(path);
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:5000/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      go("/login");
+    }
+  };
+
   return (
     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="container-responsive py-3 sm:py-4">
@@ -280,7 +293,7 @@ export default function Header() {
                     <hr className="my-1 border-slate-100" />
 
                     <button
-                      onClick={() => go("/login")}
+                      onClick={handleLogout}
                       className="w-full text-left px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 min-h-[44px] flex items-center gap-2"
                     >
                       <LogOut size={16} />

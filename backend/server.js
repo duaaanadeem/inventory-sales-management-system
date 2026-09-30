@@ -9,9 +9,13 @@ dotenv.config();
 const errorMiddleware = require("./src/middleware/errorMiddleware");
 
 const app = express();
-
-app.use(cors());
+const cookieParser = require("cookie-parser");
+app.use(cors({
+    origin: 'http://localhost:3000', // Update this based on the frontend URL
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -38,6 +42,18 @@ app.use("/api/categories", categoryRoutes);
 
 const salesRoutes = require("./src/features/sales/sales.routes");
 app.use("/api/sales", salesRoutes);
+
+const customerRoutes = require("./src/customers/customer.routes");
+app.use("/customers", customerRoutes);
+
+const supplierRoutes = require("./src/features/suppliers/supplier.routes");
+app.use("/api/suppliers", supplierRoutes);
+
+const purchaseRoutes = require("./src/features/purchases/purchase.routes");
+app.use("/api/purchases", purchaseRoutes);
+
+const authRoutes = require("./src/features/auth/auth.routes");
+app.use("/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.json({

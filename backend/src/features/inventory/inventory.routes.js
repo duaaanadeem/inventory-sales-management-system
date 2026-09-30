@@ -36,5 +36,6 @@ router.get('/current/:productId', inventoryController.getCurrentStock);
 router.get('/summary', inventoryController.getSummary);
 router.get('/report', inventoryController.getReport);
 router.get('/low-stock', inventoryController.getLowStock);
+router.get('/', inventoryController.getAllInventory);
 
 module.exports = router;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import Modal from "@/src/components/ui/Modal";
@@ -9,26 +9,99 @@ import {
   ArrowUpFromLine,
   AlertTriangle,
   Package,
+  Loader2
 } from "lucide-react";
-
-const inventory = [
-  { id: 1, name: "Wireless Mouse", sku: "WM-001", opening: 50, sold: 12, damaged: 2, current: 36, min: 10 },
-  { id: 2, name: "Mechanical Keyboard", sku: "MK-002", opening: 30, sold: 15, damaged: 0, current: 15, min: 5 },
-  { id: 3, name: "USB-C Hub", sku: "UH-003", opening: 20, sold: 12, damaged: 0, current: 8, min: 10 },
-  { id: 4, name: 'Monitor 24"', sku: "MN-004", opening: 15, sold: 3, damaged: 1, current: 11, min: 5 },
-];
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [adjustOpen, setAdjustOpen] = useState(false);
+
+  // Dynamic state
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [summary, setSummary] = useState({ total_products: 0, total_stock_items: 0, low_stock_count: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modal form state
+  const [productId, setProductId] = useState("");
+  const [adjustmentType, setAdjustmentType] = useState("stock-in");
+  const [quantity, setQuantity] = useState(1);
+  const [referenceId, setReferenceId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [invRes, sumRes] = await Promise.all([
+        fetch("http://localhost:5000/inventory"),
+        fetch("http://localhost:5000/inventory/summary")
+      ]);
+      
+      if (!invRes.ok || !sumRes.ok) {
+        throw new Error("Server returned an error");
+      }
+      
+      const invData = await invRes.json();
+      const sumData = await sumRes.json();
+
+      if (invData.success) setInventory(invData.data.inventory || []);
+      if (sumData.success) setSummary(sumData.data || { total_products: 0, total_stock_items: 0, low_stock_count: 0 });
+    } catch (error) {
+      console.error("Failed to fetch inventory:", error);
+      setError("Unable to connect to the backend server. Please make sure it is running.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!productId) return alert("Please select a product");
+
+    setIsSubmitting(true);
+    let endpoint = "";
+    if (adjustmentType === "stock-in") endpoint = "/inventory/stock-in";
+    else if (adjustmentType === "stock-out") endpoint = "/inventory/deduct";
+    else if (adjustmentType === "damaged") endpoint = "/inventory/damage";
+    else if (adjustmentType === "adjustment") endpoint = "/inventory/adjust";
+
+    try {
+      const res = await fetch(`http://localhost:5000${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: parseInt(productId),
+          qty: parseInt(quantity.toString()),
+          reference_id: referenceId || `${adjustmentType}_${Date.now()}`
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAdjustOpen(false);
+        setProductId("");
+        setQuantity(1);
+        setReferenceId("");
+        fetchData(); // re-fetch data instantly
+      } else {
+        alert(data.message || data.error || "Failed to adjust stock");
+      }
+    } catch (error) {
+      alert("Error adjusting stock");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filtered = inventory.filter(
     (i) =>
       i.name.toLowerCase().includes(search.toLowerCase()) ||
       i.sku.toLowerCase().includes(search.toLowerCase())
   );
-
-  const lowStock = inventory.filter((i) => i.current <= i.min).length;
 
   return (
     <DashboardLayout>
@@ -46,113 +119,125 @@ export default function InventoryPage() {
           <button
             onClick={() => setAdjustOpen(true)}
             className="btn-primary w-full sm:w-auto"
+            disabled={isLoading}
           >
             <Plus size={18} />
             Stock Adjustment
           </button>
         </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600">
-                <Package size={20} />
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="ml-3 text-slate-500">Loading inventory data...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-lg border border-slate-200">
+            <AlertTriangle className="w-12 h-12 text-rose-500 mb-3" />
+            <p className="text-lg font-medium text-slate-900">Connection Error</p>
+            <p className="text-slate-500 max-w-md">{error}</p>
+            <button onClick={fetchData} className="mt-4 btn-primary">Try Again</button>
+          </div>
+        ) : (
+          <>
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="card">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600">
+                    <Package size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Total Items</p>
+                    <p className="text-lg font-bold text-slate-900">{summary.total_products || inventory.length}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-slate-500">Total Items</p>
-                <p className="text-lg font-bold text-slate-900">{inventory.length}</p>
+              <div className="card">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-600">
+                    <ArrowDownToLine size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Total In (Opening)</p>
+                    <p className="text-lg font-bold text-slate-900">
+                      {inventory.reduce((s, i) => s + (i.opening || 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-rose-50 text-rose-600">
+                    <ArrowUpFromLine size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Sold / Damaged</p>
+                    <p className="text-lg font-bold text-slate-900">
+                      {inventory.reduce((s, i) => s + (i.sold || 0) + (i.damaged || 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Low Stock</p>
+                    <p className="text-lg font-bold text-slate-900">{summary.low_stock_count}</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-600">
-                <ArrowDownToLine size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Total In</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {inventory.reduce((s, i) => s + i.opening, 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-rose-50 text-rose-600">
-                <ArrowUpFromLine size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Sold / Damaged</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {inventory.reduce((s, i) => s + i.sold + i.damaged, 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600">
-                <AlertTriangle size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Low Stock</p>
-                <p className="text-lg font-bold text-slate-900">{lowStock}</p>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="card flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-            <input
-              type="search"
-              placeholder="Search inventory by name or SKU..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-          <select className="input sm:w-44">
-            <option>All Categories</option>
-            <option>Accessories</option>
-            <option>Electronics</option>
-          </select>
-        </div>
+            {/* Filters */}
+            <div className="card flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="search"
+                  placeholder="Search inventory by name or SKU..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="input pl-10"
+                />
+              </div>
+            </div>
 
-        {/* Table */}
-        <ResponsiveTable
-          data={filtered}
-          keyField="id"
-          columns={[
-            { key: "name", label: "Product" },
-            { key: "sku", label: "SKU" },
-            { key: "opening", label: "Opening", hideOnMobile: true },
-            { key: "sold", label: "Sold" },
-            { key: "damaged", label: "Damaged", hideOnMobile: true },
-            {
-              key: "current",
-              label: "Current Stock",
-              render: (r) => (
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    r.current <= r.min
-                      ? "bg-rose-100 text-rose-700"
-                      : "bg-emerald-100 text-emerald-700"
-                  }`}
-                >
-                  {r.current}
-                </span>
-              ),
-            },
-          ]}
-        />
+            {/* Table */}
+            <ResponsiveTable
+              data={filtered}
+              keyField="id"
+              columns={[
+                { key: "name", label: "Product" },
+                { key: "sku", label: "SKU" },
+                { key: "opening", label: "Opening", hideOnMobile: true },
+                { key: "sold", label: "Sold" },
+                { key: "damaged", label: "Damaged", hideOnMobile: true },
+                {
+                  key: "current",
+                  label: "Current Stock",
+                  render: (r) => (
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        r.current <= r.min
+                          ? "bg-rose-100 text-rose-700"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {r.current}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+          </>
+        )}
       </div>
 
       {/* Stock Adjustment Modal */}
@@ -161,14 +246,20 @@ export default function InventoryPage() {
         onClose={() => setAdjustOpen(false)}
         title="Stock Adjustment"
       >
-        <form className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Product
             </label>
-            <select className="input">
+            <select 
+              className="input" 
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+              required
+            >
+              <option value="" disabled>Select a product...</option>
               {inventory.map((i) => (
-                <option key={i.id}>{i.name}</option>
+                <option key={i.id} value={i.id}>{i.name} ({i.sku})</option>
               ))}
             </select>
           </div>
@@ -176,33 +267,53 @@ export default function InventoryPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Adjustment Type
             </label>
-            <select className="input">
-              <option>Stock In</option>
-              <option>Stock Out</option>
-              <option>Damaged</option>
+            <select 
+              className="input"
+              value={adjustmentType}
+              onChange={(e) => setAdjustmentType(e.target.value)}
+            >
+              <option value="stock-in">Stock In</option>
+              <option value="stock-out">Stock Out</option>
+              <option value="damaged">Damaged</option>
+              <option value="adjustment">Manual Adjustment</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Quantity
             </label>
-            <input type="number" className="input" min="1" />
+            <input 
+              type="number" 
+              className="input" 
+              min={adjustmentType === "adjustment" ? "-99999" : "1"}
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              required
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Reason
+              Reason / Reference ID (Optional)
             </label>
-            <textarea className="input" rows={3} />
+            <input 
+              type="text"
+              className="input" 
+              placeholder="e.g. invoice_123 or leave blank"
+              value={referenceId}
+              onChange={(e) => setReferenceId(e.target.value)}
+            />
           </div>
           <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
             <button
               type="button"
               onClick={() => setAdjustOpen(false)}
               className="btn-secondary w-full sm:w-auto"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button type="submit" className="btn-primary w-full sm:w-auto">
+            <button type="submit" className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Save Adjustment
             </button>
           </div>
