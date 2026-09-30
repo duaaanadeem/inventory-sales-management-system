@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -35,6 +36,9 @@ app.use("/api/products", productRoutes);
 const categoryRoutes = require("./src/features/categories/category.routes");
 app.use("/api/categories", categoryRoutes);
 
+const salesRoutes = require("./src/features/sales/sales.routes");
+app.use("/api/sales", salesRoutes);
+
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -60,6 +64,10 @@ app.use(errorMiddleware);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
