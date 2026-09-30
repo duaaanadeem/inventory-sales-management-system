@@ -1,0 +1,40 @@
+const express = require('express');
+const router = express.Router();
+const inventoryController = require('./inventory.controller');
+const { validateStockChange } = require('./inventory.validation');
+
+let rateLimit;
+try {
+  rateLimit = require('express-rate-limit');
+} catch (e) {
+  rateLimit = () => (req, res, next) => next();
+}
+
+const writeLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    message: { success: false, error: 'Too many requests' }
+});
+
+// TODO: replace with real auth middleware once Shahid's auth is merged
+const requireAuth = (req, res, next) => {
+    if (!req.user) {
+        req.user = { id: 1 };
+    }
+    next();
+};
+
+router.use(requireAuth);
+
+router.post('/stock-in', writeLimiter, validateStockChange(false), inventoryController.stockInManual);
+router.post('/deduct', writeLimiter, validateStockChange(false), inventoryController.deductStock);
+router.post('/add', writeLimiter, validateStockChange(false), inventoryController.addStock);
+router.post('/damage', writeLimiter, validateStockChange(false), inventoryController.damageStock);
+router.post('/adjust', writeLimiter, validateStockChange(true), inventoryController.adjustStock);
+
+router.get('/current/:productId', inventoryController.getCurrentStock);
+router.get('/summary', inventoryController.getSummary);
+router.get('/report', inventoryController.getReport);
+router.get('/low-stock', inventoryController.getLowStock);
+
+module.exports = router;
