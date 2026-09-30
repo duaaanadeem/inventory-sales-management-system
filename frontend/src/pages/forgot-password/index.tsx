@@ -1,27 +1,59 @@
 import AuthLayout from "@/src/components/layout/AuthLayout";
 import Link from "next/link";
 import { useState } from "react";
-import { Boxes, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { Boxes, Mail, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:5000/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        setSent(true);
+      } else {
+        setError(data.message || "Failed to send reset link.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Unable to connect to the server.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (sent) {
     return (
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 sm:p-8 text-center">
-        <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-          <CheckCircle size={26} className="text-emerald-600" />
+      <AuthLayout>
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 sm:p-8 text-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle size={26} className="text-emerald-600" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+            Check Your Email
+          </h1>
+          <p className="text-sm text-slate-500 mb-6">
+            We&apos;ve sent a password reset link to your email address.
+          </p>
+          <Link href="/login" className="btn-primary w-full inline-block">
+            Back to Login
+          </Link>
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
-          Check Your Email
-        </h1>
-        <p className="text-sm text-slate-500 mb-6">
-          We&apos;ve sent a password reset link to your email address.
-        </p>
-        <Link href="/login" className="btn-primary w-full">
-          Back to Login
-        </Link>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -41,13 +73,13 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSent(true);
-          }}
-          className="space-y-4"
-        >
+        {error && (
+          <div className="bg-rose-50 text-rose-600 p-3 rounded-md text-sm mb-4">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleForgot} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Email
@@ -61,12 +93,15 @@ export default function ForgotPasswordPage() {
                 type="email"
                 placeholder="you@example.com"
                 className="input pl-10"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
           </div>
 
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2" disabled={isLoading}>
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             Send Reset Link
           </button>
         </form>
