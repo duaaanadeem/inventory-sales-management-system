@@ -39,26 +39,28 @@ export default function DashboardPage() {
 
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const response = await axios.get(
-          "http://localhost:5000/dashboard"
-        );
+useEffect(() => {
+  const fetchDashboardData = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:5000/dashboard"
+      );
 
-        if (response.data.success) {
-          setDashboardData(response.data.data);
-        }
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setError("Failed to load dashboard data.");
-      } finally {
-        setLoading(false);
+      const result = await response.json();
+
+      if (result.success) {
+        setDashboardData(result.data);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setError("Failed to load dashboard data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchDashboardData();
-  }, []);
+  fetchDashboardData();
+}, []);
 
   const formatCurrency = (value: number | string) => {
     return `$${Number(value).toLocaleString("en-US")}`;
