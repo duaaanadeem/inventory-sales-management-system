@@ -10,6 +10,16 @@ async function getAllPurchases() {
   return result.rows;
 }
 
+async function getPurchaseItems(purchaseId) {
+  const result = await pool.query(`
+    SELECT pi.*, p.name 
+    FROM purchase_items pi
+    JOIN products p ON p.id = pi.product_id
+    WHERE pi.purchase_id = $1
+  `, [purchaseId]);
+  return result.rows;
+}
+
 async function createPurchase(data) {
   const { supplier_id, purchase_date, items } = data;
   const client = await pool.connect();
@@ -49,7 +59,7 @@ async function createPurchase(data) {
   }
 }
 
-async function completePurchase(purchaseId, adminId) {
+async function completePurchase(purchaseId, adminId, damagedItems = []) {
   const client = await pool.connect();
   
   try {
@@ -77,10 +87,24 @@ async function completePurchase(purchaseId, adminId) {
 
     // Apply stock change for each item
     for (const item of itemsRes.rows) {
-      await client.query(
-        `SELECT apply_stock_change($1, $2, 'in', 'purchase', $3, $4)`,
-        [item.product_id, item.quantity, purchaseId.toString(), adminId]
-      );
+      const damagedRecord = damagedItems.find(d => d.product_id === item.product_id);
+      const damagedQty = damagedRecord ? (Number(damagedRecord.damaged_qty) || 0) : 0;
+      
+      const cleanQty = item.quantity - damagedQty;
+
+      if (cleanQty > 0) {
+        await client.query(
+          `SELECT apply_stock_change($1, $2, 'in', 'purchase', $3, $4)`,
+          [item.product_id, cleanQty, purchaseId.toString(), adminId]
+        );
+      }
+
+      if (damagedQty > 0) {
+        await client.query(
+          `SELECT apply_stock_change($1, $2, 'damaged', 'purchase', $3, $4)`,
+          [item.product_id, damagedQty, purchaseId.toString() + '-damaged', adminId]
+        );
+      }
     }
 
     // Update status
@@ -99,4 +123,4 @@ async function completePurchase(purchaseId, adminId) {
   }
 }
 
-module.exports = { getAllPurchases, createPurchase, completePurchase };
+module.exports = { getAllPurchases, createPurchase, completePurchase, getPurchaseItems };

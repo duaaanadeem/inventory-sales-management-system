@@ -14,6 +14,7 @@ import {
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
+  const [viewFilter, setViewFilter] = useState("All");
   const [adjustOpen, setAdjustOpen] = useState(false);
 
   // Dynamic state
@@ -97,11 +98,23 @@ export default function InventoryPage() {
     }
   };
 
-  const filtered = inventory.filter(
-    (i) =>
-      i.name.toLowerCase().includes(search.toLowerCase()) ||
-      i.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = inventory.filter((i) => {
+    const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) ||
+                          i.sku.toLowerCase().includes(search.toLowerCase());
+    
+    let matchesView = true;
+    if (viewFilter === "Low Stock") {
+      matchesView = i.current <= i.min;
+    } else if (viewFilter === "Damaged") {
+      matchesView = i.damaged > 0;
+    }
+
+    return matchesSearch && matchesView;
+  });
+
+  if (viewFilter === "Damaged") {
+    filtered.sort((a, b) => b.damaged - a.damaged);
+  }
 
   return (
     <DashboardLayout>
@@ -207,6 +220,15 @@ export default function InventoryPage() {
                   className="input pl-10"
                 />
               </div>
+              <select
+                className="input sm:w-48"
+                value={viewFilter}
+                onChange={(e) => setViewFilter(e.target.value)}
+              >
+                <option value="All">All Items</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Damaged">Damaged Stock</option>
+              </select>
             </div>
 
             {/* Table */}

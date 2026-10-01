@@ -25,6 +25,12 @@ export default function PurchasesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completingId, setCompletingId] = useState<number | null>(null);
 
+  // Damage Report Modal State
+  const [damageModalOpen, setDamageModalOpen] = useState(false);
+  const [damageTargetId, setDamageTargetId] = useState<number | null>(null);
+  const [damageItems, setDamageItems] = useState<{ product_id: number; name: string; quantity: number; damaged_qty: number }[]>([]);
+  const [isFetchingItems, setIsFetchingItems] = useState(false);
+
   const fetchData = async () => {
     setIsLoading(true);
     setError("");
@@ -102,19 +108,63 @@ export default function PurchasesPage() {
     }
   };
 
-  const handleCompletePO = async (id: number) => {
-    if (!confirm("Are you sure you want to mark this purchase as completed? This will update the inventory stock.")) return;
+  const handleOpenDamageModal = async (id: number) => {
+    setDamageTargetId(id);
+    setDamageModalOpen(true);
+    setIsFetchingItems(true);
+    setError("");
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/purchases/${id}/items`);
+      const data = await res.json();
+      if (data.success) {
+        setDamageItems(
+          data.data.map((item: any) => ({
+            ...item,
+            damaged_qty: 0
+          }))
+        );
+      } else {
+        setError(data.message || "Failed to fetch purchase items");
+        setDamageModalOpen(false);
+      }
+    } catch (err) {
+      setError("Unable to connect to the server.");
+      setDamageModalOpen(false);
+    } finally {
+      setIsFetchingItems(false);
+    }
+  };
+
+  const handleCompletePO = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!damageTargetId) return;
     
-    setCompletingId(id);
+    setCompletingId(damageTargetId);
     setError("");
     
+    // validate damaged items
+    const hasInvalid = damageItems.some(i => i.damaged_qty < 0 || i.damaged_qty > i.quantity);
+    if (hasInvalid) {
+      setError("Damaged quantity cannot exceed ordered quantity or be less than zero.");
+      setCompletingId(null);
+      return;
+    }
+    
     try {
-      const res = await fetch(`http://localhost:5000/api/purchases/${id}/complete`, {
-        method: "PUT"
+      const damaged_items = damageItems
+        .filter(i => i.damaged_qty > 0)
+        .map(i => ({ product_id: i.product_id, damaged_qty: i.damaged_qty }));
+
+      const res = await fetch(`http://localhost:5000/api/purchases/${damageTargetId}/complete`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ damaged_items })
       });
       const data = await res.json();
       
       if (data.success) {
+        setDamageModalOpen(false);
         fetchData(); // Refresh list
       } else {
         setError(data.message || "Failed to complete purchase");
@@ -239,11 +289,11 @@ export default function PurchasesPage() {
                 render: (r) => (
                   r.status === "pending" && (
                     <button
-                      onClick={() => handleCompletePO(r.id)}
-                      disabled={completingId === r.id}
+                      onClick={() => handleOpenDamageModal(r.id)}
+                      disabled={isFetchingItems && damageTargetId === r.id}
                       className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-md disabled:opacity-50"
                     >
-                      {completingId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle size={14} />}
+                      {isFetchingItems && damageTargetId === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle size={14} />}
                       Mark Completed
                     </button>
                   )
@@ -317,6 +367,70 @@ export default function PurchasesPage() {
             <button type="submit" className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Create Purchase Order
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Damage Report Modal (Mark Completed) */}
+      <Modal
+        isOpen={damageModalOpen}
+        onClose={() => !completingId && setDamageModalOpen(false)}
+        title="Complete Purchase & Receive Stock"
+      >
+        <form className="space-y-4" onSubmit={handleCompletePO}>
+          {error && damageModalOpen && (
+            <div className="bg-rose-50 text-rose-600 p-3 rounded-md text-sm mb-4">
+              {error}
+            </div>
+          )}
+          
+          <p className="text-sm text-slate-600 mb-4">
+            Please verify the received items. If any items arrived damaged, log the damaged quantity below. Damaged items will be recorded separately and subtracted from the current clean stock.
+          </p>
+
+          {isFetchingItems ? (
+             <div className="flex justify-center p-6"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+          ) : (
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+              {damageItems.map((item, index) => (
+                <div key={item.product_id} className="p-3 border border-slate-200 rounded-lg flex items-center justify-between gap-4 bg-slate-50">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-900">{item.name}</p>
+                    <p className="text-xs text-slate-500">Ordered Qty: {item.quantity}</p>
+                  </div>
+                  <div className="w-32">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Damaged Qty</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      max={item.quantity}
+                      className="input py-1.5 text-sm" 
+                      value={item.damaged_qty}
+                      onChange={(e) => {
+                        const newItems = [...damageItems];
+                        newItems[index].damaged_qty = Number(e.target.value) || 0;
+                        setDamageItems(newItems);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setDamageModalOpen(false)}
+              className="btn-secondary w-full sm:w-auto"
+              disabled={completingId !== null}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary w-full sm:w-auto flex items-center justify-center gap-2" disabled={completingId !== null || isFetchingItems}>
+              {completingId !== null && <Loader2 className="w-4 h-4 animate-spin" />}
+              Confirm Receipt
             </button>
           </div>
         </form>

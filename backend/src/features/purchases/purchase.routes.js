@@ -6,4 +6,6 @@ router.get("/", purchaseController.getAllPurchases);
 router.post("/", purchaseController.createPurchase);
 router.put("/:id/complete", purchaseController.completePurchase);
 
+router.get("/:id/items", purchaseController.getPurchaseItems);
+
 module.exports = router;
