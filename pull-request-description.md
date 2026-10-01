@@ -1,34 +1,29 @@
 # Pull Request Description
 
 ## Title
-feat: initialize inventory and sales management backend
+feat: build inventory and sales management system foundation
 
 ## Summary
-This pull request merges the current branch into the main branch and establishes the initial backend foundation for the Inventory & Sales Management System.
+This pull request merges the current branch into `main` and adds the dashboard foundation for the Inventory & Sales Management System. It provides the dashboard API and database configuration, along with a responsive Next.js dashboard for viewing key business metrics and sales trends.
 
-## What’s Included
-- Set up the Express backend server and project structure
-- Added CORS and JSON parsing middleware
-- Implemented health check endpoints to confirm the API is running
-- Created the dashboard feature module and route configuration
-- Added database connection configuration support for project data storage
-- Organized the project into a feature-based architecture
-- Added documentation for API and database usage
+## Backend Changes
+- Set up the Express server with CORS, JSON parsing, health checks, and error handling.
+- Add a feature-based dashboard module with API routes and service/controller layers.
+- Add database connection configuration and environment variable support.
+- Document the API and database setup.
 
-## Why This Change
-The project requires a stable backend foundation before adding more advanced inventory, sales, reporting, and analytics features. This PR provides the base architecture and API endpoints needed for future development.
-
-## Changes Made
-- Initialized the backend application entry point
-- Configured environment variable loading
-- Added default API routes and error handling
-- Created a reusable project structure for backend features
-- Added supporting docs for implementation and database setup
+## Frontend Changes
+- Build the responsive dashboard layout with shared header and sidebar navigation.
+- Display summary cards for sales, revenue, products, low stock, customers, and pending orders.
+- Visualize daily sales in a chart.
+- Fetch dashboard metrics from the backend and show loading and error states.
+- Create reusable dashboard components for metric cards and the sales chart.
 
 ## Validation
-- Start the backend server using the project’s standard command
-- Confirm that the application responds successfully on the health endpoint
-- Verify that the dashboard route is available without runtime errors
+- Start the backend and frontend using their documented development commands.
+- Confirm the backend health check responds successfully.
+- Open the frontend and verify that the main pages render at desktop and mobile widths.
+- Confirm the dashboard handles successful API responses and displays its loading or error state when appropriate.
 
 ## Notes
-This branch contains the initial implementation required to continue building the system in a structured and maintainable way.
+This pull request focuses on the dashboard. Other application pages and workflows are outside its scope.
