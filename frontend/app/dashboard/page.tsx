@@ -1,4 +1,7 @@
 "use client";
+
+import { useEffect, useState } from "react";
+import axios from "axios";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import StatCard from "@/components/dashboard/StatCard";
 import SalesChart from "@/components/dashboard/SalesChart";
@@ -12,17 +15,108 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-const stats = [
-  { title: "Total Sales", value: "$45,231", icon: DollarSign, color: "blue" },
-  { title: "Today's Sales", value: "$1,245", icon: TrendingUp, color: "green" },
-  { title: "Total Products", value: "342", icon: Package, color: "purple" },
-  { title: "Low Stock", value: "12", icon: AlertTriangle, color: "red" },
-  { title: "Customers", value: "1,024", icon: Users, color: "indigo" },
-  { title: "Pending Orders", value: "8", icon: Clock, color: "yellow" },
-  { title: "Monthly Revenue", value: "$12,450", icon: ShoppingBag, color: "teal" },
-];
+interface DashboardData {
+  total_sales: number | string;
+  todays_sales: number | string;
+  monthly_revenue: number | string;
+  pending_orders: number | string;
+  total_products: number | string;
+  low_stock_products: number | string;
+  total_customers: number | string;
+  daily_sales: {
+    sale_date: string;
+    number_of_sales: number | string;
+    revenue: number | string;
+  }[];
+}
 
 export default function DashboardPage() {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+    null
+  );
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/dashboard"
+        );
+
+        if (response.data.success) {
+          setDashboardData(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        setError("Failed to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const formatCurrency = (value: number | string) => {
+    return `$${Number(value).toLocaleString("en-US")}`;
+  };
+
+  const stats = dashboardData
+    ? [
+        {
+          title: "Total Sales",
+          value: formatCurrency(dashboardData.total_sales),
+          icon: DollarSign,
+          color: "blue",
+        },
+        {
+          title: "Today's Sales",
+          value: formatCurrency(dashboardData.todays_sales),
+          icon: TrendingUp,
+          color: "green",
+        },
+        {
+          title: "Total Products",
+          value: Number(dashboardData.total_products).toLocaleString("en-US"),
+          icon: Package,
+          color: "purple",
+        },
+        {
+          title: "Low Stock",
+          value: Number(dashboardData.low_stock_products).toLocaleString(
+            "en-US"
+          ),
+          icon: AlertTriangle,
+          color: "red",
+        },
+        {
+          title: "Customers",
+          value: Number(dashboardData.total_customers).toLocaleString(
+            "en-US"
+          ),
+          icon: Users,
+          color: "indigo",
+        },
+        {
+          title: "Pending Orders",
+          value: Number(dashboardData.pending_orders).toLocaleString(
+            "en-US"
+          ),
+          icon: Clock,
+          color: "yellow",
+        },
+        {
+          title: "Monthly Revenue",
+          value: formatCurrency(dashboardData.monthly_revenue),
+          icon: ShoppingBag,
+          color: "teal",
+        },
+      ]
+    : [];
+
   return (
     <DashboardLayout>
       <div className="space-y-4 sm:space-y-6">
@@ -31,10 +125,12 @@ export default function DashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
               Dashboard
             </h1>
+
             <p className="text-sm sm:text-base text-slate-500 mt-1">
               Welcome back! Here's your business overview.
             </p>
           </div>
+
           <span className="text-xs sm:text-sm text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg w-fit">
             {new Date().toLocaleDateString("en-US", {
               weekday: "long",
@@ -44,15 +140,32 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-          {stats.map((stat) => (
-            <StatCard key={stat.title} {...stat} />
-          ))}
-        </div>
+        {loading && (
+          <p className="text-sm text-slate-500">
+            Loading dashboard data...
+          </p>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          <SalesChart />
-        </div>
+        {error && (
+          <p className="text-sm text-red-500">
+            {error}
+          </p>
+        )}
+
+
+{!loading && !error && (
+          <>
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {stats.map((stat) => (
+                <StatCard key={stat.title} {...stat} />
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              <SalesChart data={dashboardData?.daily_sales || []} />
+            </div>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
