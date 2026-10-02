@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
-import { activities, timeAgo } from "@/src/lib/mockData";
-import type { EntityType } from "@/src/lib/mockData";
+import { activities as mockActivities, timeAgo } from "@/src/lib/mockData";
+import type { ActivityEntry, EntityType } from "@/src/lib/mockData";
+import { activitiesApi } from "@/src/lib/api";
 import {
   Search,
   Activity,
@@ -19,6 +20,7 @@ const entityColors: Record<EntityType, string> = {
   customer: "bg-teal-100 text-teal-700",
   purchase: "bg-cyan-100 text-cyan-700",
   user: "bg-slate-100 text-slate-700",
+  other: "bg-slate-100 text-slate-700",
 };
 
 const entityFilters: Array<"All" | EntityType> = [
@@ -46,11 +48,41 @@ const entityLabel = (type: EntityType) =>
 export default function ActivitiesPage() {
   const [search, setSearch] = useState("");
   const [entity, setEntity] = useState<"All" | EntityType>("All");
+  const [items, setItems] = useState<ActivityEntry[] | null>(null);
+  const [summary, setSummary] = useState<{
+    total_actions: number;
+    today_actions: number;
+  } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
-  const filtered = activities.filter((a) => {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [listRes, summaryRes] = await Promise.allSettled([
+        activitiesApi.list(),
+        activitiesApi.summary(),
+      ]);
+      if (cancelled) return;
+      setItems(
+        listRes.status === "fulfilled" ? listRes.value : mockActivities
+      );
+      setSummary(
+        summaryRes.status === "fulfilled"
+          ? {
+              total_actions: summaryRes.value.total_actions,
+              today_actions: summaryRes.value.today_actions,
+            }
+          : null
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = (items ?? []).filter((a) => {
     const matchesSearch =
       a.user.toLowerCase().includes(search.toLowerCase()) ||
       a.action.toLowerCase().includes(search.toLowerCase()) ||
@@ -61,10 +93,14 @@ export default function ActivitiesPage() {
 
   const todayString = mounted ? new Date().toDateString() : null;
   const todayCount = mounted
-    ? activities.filter((a) => new Date(a.createdAt).toDateString() === todayString)
-        .length
+    ? (summary?.today_actions ??
+      (items ?? []).filter(
+        (a) => new Date(a.createdAt).toDateString() === todayString
+      ).length)
     : 0;
-  const entityCount = new Set(activities.map((a) => a.entityType)).size;
+  const entityCount = items
+    ? new Set(items.map((a) => a.entityType)).size
+    : 0;
 
   return (
     <DashboardLayout>
@@ -91,7 +127,7 @@ export default function ActivitiesPage() {
               <div>
                 <p className="text-xs text-slate-500">Total Actions</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {activities.length}
+                  {summary ? summary.total_actions : items ? items.length : "—"}
                 </p>
               </div>
             </div>
@@ -103,7 +139,9 @@ export default function ActivitiesPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Updated Today</p>
-                <p className="text-lg font-bold text-slate-900">{todayCount}</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {items ? todayCount : "—"}
+                </p>
               </div>
             </div>
           </div>
@@ -114,7 +152,9 @@ export default function ActivitiesPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Entities Tracked</p>
-                <p className="text-lg font-bold text-slate-900">{entityCount}</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {entityCount || "—"}
+                </p>
               </div>
             </div>
           </div>
@@ -149,9 +189,15 @@ export default function ActivitiesPage() {
         </div>
 
         {/* Table */}
-        <ResponsiveTable
-          data={filtered}
-          keyField="id"
+        {items === null ? (
+          <div className="card flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-slate-500 mt-3">Loading activity log...</p>
+          </div>
+        ) : (
+          <ResponsiveTable
+            data={filtered}
+            keyField="id"
           columns={[
             {
               key: "user",
@@ -222,6 +268,7 @@ export default function ActivitiesPage() {
             },
           ]}
         />
+        )}
       </div>
     </DashboardLayout>
   );

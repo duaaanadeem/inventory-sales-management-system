@@ -64,8 +64,9 @@ import {
   ShoppingBag,
   Truck,
 } from "lucide-react";
-import { notifications, timeAgo } from "@/src/lib/mockData";
-import type { NotificationType } from "@/src/lib/mockData";
+import { notifications as mockNotifications, timeAgo } from "@/src/lib/mockData";
+import type { AppNotification, NotificationType } from "@/src/lib/mockData";
+import { notificationsApi } from "@/src/lib/api";
 
 const bellIcons: Record<NotificationType, { icon: any; color: string }> = {
   low_stock: { icon: AlertTriangle, color: "text-amber-600" },
@@ -77,24 +78,46 @@ const bellIcons: Record<NotificationType, { icon: any; color: string }> = {
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifs, setNotifs] = useState(notifications);
+  const [notifs, setNotifs] = useState<AppNotification[]>([]);
+  const [notifsLoaded, setNotifsLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await notificationsApi.list();
+        if (!cancelled) setNotifs(data.notifications);
+      } catch {
+        setNotifs(mockNotifications);
+      } finally {
+        if (!cancelled) setNotifsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const unreadCount = notifs.filter((n) => !n.isRead).length;
   const recent = [...notifs]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 6);
 
-  const markRead = (id: number) =>
+  const markRead = (id: number) => {
     setNotifs((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
+    notificationsApi.markRead(id).catch(() => {});
+  };
 
-  const markAllRead = () =>
+  const markAllRead = () => {
     setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    notificationsApi.markAllRead().catch(() => {});
+  };
 
   const go = (path: string) => {
     setMenuOpen(false);
@@ -174,7 +197,11 @@ export default function Header() {
                     </div>
 
                     <div className="max-h-80 overflow-y-auto">
-                      {recent.length === 0 ? (
+                      {!notifsLoaded ? (
+                        <div className="px-4 py-8 text-center text-sm text-slate-500">
+                          Loading...
+                        </div>
+                      ) : recent.length === 0 ? (
                         <div className="px-4 py-8 text-center text-sm text-slate-500">
                           No notifications
                         </div>
