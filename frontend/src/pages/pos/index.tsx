@@ -668,6 +668,7 @@ export default function POSPage() {
                 <tr>
                   <th className="px-4 py-3">Sale</th>
                   <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3">Items</th>
                   <th className="px-4 py-3 text-right">Total</th>
@@ -680,6 +681,16 @@ export default function POSPage() {
                     <td className="px-4 py-3 font-medium">#{sale.id}</td>
                     <td className="px-4 py-3 text-slate-600">
                       {new Date(sale.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-slate-800">
+                      {sale.customer_name ? (
+                        <span className="inline-flex items-center gap-1">
+                          <User size={13} className="text-slate-400" />
+                          {sale.customer_name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">Walk-in</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 capitalize">{sale.payment_method}</td>
                     <td className="px-4 py-3">{sale.item_count}</td>
@@ -716,10 +727,20 @@ export default function POSPage() {
             ) : selectedSale ? (
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-slate-900">
-                    Sale #{selectedSale.id}
-                    {selectedInvoice && ` — ${selectedInvoice.invoiceNumber}`}
-                  </h3>
+                  <div>
+                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                      Sale #{selectedSale.id}
+                      {selectedSale.customer_name && (
+                        <span className="text-xs font-normal bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <User size={12} />
+                          {selectedSale.customer_name}
+                        </span>
+                      )}
+                    </h3>
+                    {selectedInvoice && (
+                      <p className="text-xs text-slate-500 mt-1">Invoice: {selectedInvoice.invoiceNumber}</p>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => { setSelectedSale(null); setSelectedInvoice(null); }}
