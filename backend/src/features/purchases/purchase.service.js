@@ -109,7 +109,7 @@ async function completePurchase(purchaseId, adminId, damagedItems = []) {
 
     // Update status
     const updateRes = await client.query(
-      `UPDATE purchases SET status = 'completed' WHERE id = $1 RETURNING *`,
+      `UPDATE purchases SET status = 'completed', payment_status = 'paid' WHERE id = $1 RETURNING *`,
       [purchaseId]
     );
 

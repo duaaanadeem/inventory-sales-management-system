@@ -18,4 +18,13 @@ async function createSupplier(req, res, next) {
   }
 }
 
-module.exports = { getAllSuppliers, createSupplier };
+async function getSupplierSummary(req, res, next) {
+  try {
+    const data = await supplierService.getSupplierSummary(req.params.id);
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { getAllSuppliers, createSupplier, getSupplierSummary };

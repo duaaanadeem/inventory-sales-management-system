@@ -13,6 +13,12 @@ export default function SuppliersPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // History State
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [supplierHistory, setSupplierHistory] = useState<{ summary: any; orders: any[] } | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
   // Form State
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
@@ -68,6 +74,24 @@ export default function SuppliersPage() {
       setError("Unable to connect to the server.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleViewHistory = async (supplier: any) => {
+    setSelectedSupplier(supplier);
+    setHistoryOpen(true);
+    setIsLoadingHistory(true);
+    setSupplierHistory(null);
+    try {
+      const res = await fetch(`http://localhost:5000/api/suppliers/${supplier.id}/summary`);
+      const data = await res.json();
+      if (data.success) {
+        setSupplierHistory(data.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -135,6 +159,18 @@ export default function SuppliersPage() {
               { key: "phone", label: "Phone", hideOnMobile: true },
               { key: "email", label: "Email", hideOnMobile: true },
               { key: "address", label: "Address", hideOnMobile: true },
+              {
+                key: "actions",
+                label: "Actions",
+                render: (row) => (
+                  <button
+                    onClick={() => handleViewHistory(row)}
+                    className="text-xs font-medium text-primary-600 hover:text-primary-700 bg-primary-50 px-2 py-1 rounded-md"
+                  >
+                    View History
+                  </button>
+                ),
+              }
             ]}
           />
         )}
@@ -220,6 +256,80 @@ export default function SuppliersPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={historyOpen} onClose={() => setHistoryOpen(false)} title={`History: ${selectedSupplier?.name || ""}`}>
+        {isLoadingHistory ? (
+          <div className="flex items-center justify-center p-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+          </div>
+        ) : supplierHistory ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg">
+                <p className="text-xs font-medium text-slate-500 mb-1">Total Spent</p>
+                <p className="text-lg font-bold text-slate-900">${parseFloat(supplierHistory.summary.total_spent).toFixed(2)}</p>
+              </div>
+              <div className="bg-rose-50 border border-rose-100 p-4 rounded-lg">
+                <p className="text-xs font-medium text-rose-500 mb-1">Amount Unpaid</p>
+                <p className="text-lg font-bold text-rose-700">${parseFloat(supplierHistory.summary.total_unpaid).toFixed(2)}</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg">
+                <p className="text-xs font-medium text-slate-500 mb-1">Total Orders</p>
+                <p className="text-lg font-bold text-slate-900">{supplierHistory.summary.total_orders}</p>
+              </div>
+            </div>
+
+            {supplierHistory.orders.length > 0 ? (
+              <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 font-medium text-slate-600">PO #</th>
+                      <th className="px-4 py-3 font-medium text-slate-600">Date</th>
+                      <th className="px-4 py-3 font-medium text-slate-600">Total</th>
+                      <th className="px-4 py-3 font-medium text-slate-600">Status</th>
+                      <th className="px-4 py-3 font-medium text-slate-600 hidden sm:table-cell">Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {supplierHistory.orders.map((order) => (
+                      <tr key={order.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-medium text-slate-900">PO-{order.id.toString().padStart(4, '0')}</td>
+                        <td className="px-4 py-3 text-slate-600">{new Date(order.purchase_date).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-slate-900 font-medium">${parseFloat(order.total_cost).toFixed(2)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            order.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            order.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" : 
+                            order.payment_status === "partial" ? "bg-blue-100 text-blue-700" :
+                            "bg-rose-100 text-rose-700"
+                          }`}>
+                            {order.payment_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                No purchase orders found for this supplier.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-rose-500 text-sm">
+            Failed to load history.
+          </div>
+        )}
       </Modal>
     </DashboardLayout>
   );
