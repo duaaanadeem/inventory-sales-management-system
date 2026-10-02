@@ -56,6 +56,7 @@ interface SaleSummary {
   created_at: string;
   invoice_number?: string;
   item_count: number;
+  customer_name?: string | null;
 }
 
 interface SaleDetails extends SaleSummary {
