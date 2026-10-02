@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
+import apiClient from "@/src/lib/apiClient";
 
 interface Product {
   id: number;
@@ -165,7 +166,7 @@ export default function POSPage() {
       if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<SaleSummary[]> = await response.json();
 
-      if (!response.ok || !result.success || !result.data) {
+      if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
       }
       setSales(result.data);
@@ -207,7 +208,7 @@ export default function POSPage() {
           }>
         > = await response.json();
 
-        if (!response.ok || !result.success || !result.data) {
+        if (!result.success || !result.data) {
           throw new Error(getErrorMessage(result));
         }
 
@@ -305,7 +306,7 @@ export default function POSPage() {
       if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<SaleResponse> = await response.json();
 
-      if (!response.ok || !result.success || !result.data) {
+      if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
       }
 
@@ -338,7 +339,7 @@ export default function POSPage() {
       if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<SaleDetails> = await response.json();
 
-      if (!response.ok || !result.success || !result.data) {
+      if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
       }
       setSelectedSale(result.data);
@@ -361,7 +362,7 @@ export default function POSPage() {
       if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<InvoiceResponse> = await response.json();
 
-      if (!response.ok || !result.success || !result.data) {
+      if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
       }
       setSelectedInvoice(result.data.invoice);
