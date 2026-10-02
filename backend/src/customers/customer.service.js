@@ -1,10 +1,5 @@
 // backend/src/customers/customer.service.js
-let pool;
-try {
-  pool = require('../config/pg-db'); // same pg Pool inventory.js uses
-} catch (e) {
-  pool = require('../config/db');
-}
+const pool = require('../config/pg-db');
 const { escapeLike, parseDate } = require('./customer.validation');
 
 const SORT_COLUMNS = { name: 'name', total_spending: 'total_spending', created_at: 'created_at' };

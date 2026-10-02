@@ -1,4 +1,4 @@
-const pool = require('../../config/db');
+const pool = require('../../config/pg-db');
 
 const COLUMNS = 'id, type, message, related_id, is_read, created_at';
 

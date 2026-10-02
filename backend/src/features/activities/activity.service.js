@@ -1,4 +1,4 @@
-const pool = require('../../config/db');
+const pool = require('../../config/pg-db');
 
 const COLS = `
   al.id, al.action, al.entity_type, al.entity_id, al.created_at,
