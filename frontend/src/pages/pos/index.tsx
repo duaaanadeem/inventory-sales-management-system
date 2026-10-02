@@ -118,8 +118,7 @@ export default function POSPage() {
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const redirectToLogin = () => { window.location.href = "/login"; };
-
+  
   const CUST_URL = process.env.NEXT_PUBLIC_API_URL
     ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, "/customers")
     : "http://localhost:5000/customers";
@@ -127,9 +126,7 @@ export default function POSPage() {
   const loadCustomers = async (q = "") => {
     setIsLoadingCustomers(true);
     try {
-      const res = await fetch(`${CUST_URL}?search=${encodeURIComponent(q)}&limit=50`, { credentials: "include" });
-      if (res.status === 401) { redirectToLogin(); return; }
-      const data = await res.json();
+      const { data } = await apiClient.get(`${CUST_URL}?search=${encodeURIComponent(q)}&limit=50`);
       if (data.success) setCustomers(data.data?.customers ?? []);
     } catch { /* silent */ } finally {
       setIsLoadingCustomers(false);
@@ -140,14 +137,7 @@ export default function POSPage() {
     if (!newCustName.trim()) return;
     setIsAddingCustomer(true);
     try {
-      const res = await fetch(CUST_URL, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCustName.trim(), phone: newCustPhone.trim() || null, email: newCustEmail.trim() || null }),
-      });
-      if (res.status === 401) { redirectToLogin(); return; }
-      const data = await res.json();
+      const { data } = await apiClient.post(CUST_URL, { name: newCustName.trim(), phone: newCustPhone.trim() || null, email: newCustEmail.trim() || null });
       if (data.success && data.data) {
         setSelectedCustomer(data.data);
         setCustomerModalOpen(false);
@@ -162,9 +152,7 @@ export default function POSPage() {
   const loadSales = async () => {
     setIsLoadingSales(true);
     try {
-      const response = await fetch(`${API_URL}/sales`, { credentials: "include" });
-      if (response.status === 401) { redirectToLogin(); return; }
-      const result: ApiResponse<SaleSummary[]> = await response.json();
+      const { data: result } = await apiClient.get<ApiResponse<SaleSummary[]>>(`/sales`);
 
       if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
@@ -192,11 +180,7 @@ export default function POSPage() {
       setError("");
 
       try {
-        const response = await fetch(
-          `${API_URL}/sales/products/search?q=${encodeURIComponent(search)}`,
-          { signal: controller.signal, credentials: "include" }
-        );
-        const result: ApiResponse<
+        const { data: result } = await apiClient.get<ApiResponse<
           Array<{
             id: number;
             sku: string;
@@ -206,7 +190,7 @@ export default function POSPage() {
             current_stock: number | string | null;
             category_name?: string | null;
           }>
-        > = await response.json();
+        >>(`/sales/products/search?q=${encodeURIComponent(search)}`, { signal: controller.signal });
 
         if (!result.success || !result.data) {
           throw new Error(getErrorMessage(result));
@@ -289,11 +273,7 @@ export default function POSPage() {
     setSuccessMessage("");
 
     try {
-      const response = await fetch(`${API_URL}/sales`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { data: result } = await apiClient.post<ApiResponse<SaleResponse>>(`/sales`, {
           paymentMethod,
           discount: discountAmt.toFixed(2),
           customerId: selectedCustomer?.id ?? null,
@@ -301,10 +281,7 @@ export default function POSPage() {
             productId: item.id,
             quantity: item.quantity,
           })),
-        }),
-      });
-      if (response.status === 401) { redirectToLogin(); return; }
-      const result: ApiResponse<SaleResponse> = await response.json();
+        });
 
       if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
@@ -335,9 +312,7 @@ export default function POSPage() {
     setError("");
 
     try {
-      const response = await fetch(`${API_URL}/sales/${saleId}`, { credentials: "include" });
-      if (response.status === 401) { redirectToLogin(); return; }
-      const result: ApiResponse<SaleDetails> = await response.json();
+      const { data: result } = await apiClient.get<ApiResponse<SaleDetails>>(`/sales/${saleId}`);
 
       if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
@@ -358,9 +333,7 @@ export default function POSPage() {
     setError("");
 
     try {
-      const response = await fetch(`${API_URL}/sales/${saleId}/invoice`, { credentials: "include" });
-      if (response.status === 401) { redirectToLogin(); return; }
-      const result: ApiResponse<InvoiceResponse> = await response.json();
+      const { data: result } = await apiClient.get<ApiResponse<InvoiceResponse>>(`/sales/${saleId}/invoice`);
 
       if (!result.success || !result.data) {
         throw new Error(getErrorMessage(result));
