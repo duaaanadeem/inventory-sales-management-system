@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import ResponsiveTable from "@/components/tables/ResponsiveTable";
-import Modal from "@/components/ui/Modal";
-import ProductForm from "@/components/forms/ProductForm";
+import DashboardLayout from "@/src/components/layout/DashboardLayout";
+import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
+import Modal from "@/src/components/ui/Modal";
+import ProductForm from "@/src/components/forms/ProductForm";
 import { API_BASE_URL, createProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
 import { ImageIcon, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 
