@@ -21,7 +21,8 @@ export type EntityType =
   | "supplier"
   | "customer"
   | "purchase"
-  | "user";
+  | "user"
+  | "other";
 
 export interface ActivityEntry {
   id: number;

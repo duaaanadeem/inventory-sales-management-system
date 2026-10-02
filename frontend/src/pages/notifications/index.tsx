@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/src/components/layout/DashboardLayout";
-import { notifications, timeAgo } from "@/src/lib/mockData";
-import type { NotificationType } from "@/src/lib/mockData";
+import { notifications as mockNotifications, timeAgo } from "@/src/lib/mockData";
+import type { AppNotification, NotificationType } from "@/src/lib/mockData";
+import { notificationsApi } from "@/src/lib/api";
 import {
   CheckCheck,
   AlertTriangle,
@@ -44,20 +45,51 @@ const typeStyles: Record<
 type FilterKey = "all" | "unread";
 
 export default function NotificationsPage() {
-  const [items, setItems] = useState(notifications);
+  const [items, setItems] = useState<AppNotification[] | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
-  const unreadCount = items.filter((n) => !n.isRead).length;
-  const filtered = filter === "unread" ? items.filter((n) => !n.isRead) : items;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await notificationsApi.list();
+        if (!cancelled) setItems(data.notifications);
+      } catch {
+        setItems(mockNotifications);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const markRead = (id: number) =>
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+  const unreadCount =
+    items === null ? 0 : items.filter((n) => !n.isRead).length;
+  const filtered =
+    items === null
+      ? []
+      : filter === "unread"
+        ? items.filter((n) => !n.isRead)
+        : items;
 
-  const markAllRead = () =>
-    setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  const markRead = (id: number) => {
+    setItems((prev) =>
+      prev === null
+        ? prev
+        : prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    notificationsApi.markRead(id).catch(() => {});
+  };
+
+  const markAllRead = () => {
+    setItems((prev) =>
+      prev === null ? prev : prev.map((n) => ({ ...n, isRead: true }))
+    );
+    notificationsApi.markAllRead().catch(() => {});
+  };
 
   const tabs = [
     { key: "all" as const, label: "All" },
@@ -116,7 +148,14 @@ export default function NotificationsPage() {
         </div>
 
         {/* List */}
-        {filtered.length === 0 ? (
+        {items === null ? (
+          <div className="card flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-slate-500 mt-3">
+              Loading notifications...
+            </p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="card flex flex-col items-center justify-center py-16 text-center">
             <div className="p-3 rounded-full bg-slate-100 text-slate-400 mb-3">
               <Inbox size={28} />
