@@ -1,6 +1,7 @@
 import Head from "next/head";
 import type { AppProps } from "next/app";
 import { inter } from "@/src/lib/fonts";
+import { ToastProvider } from "@/src/context/ToastContext";
 import "./globals.css";
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -19,7 +20,9 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="theme-color" content="#2563eb" />
       </Head>
       <div className={inter.className}>
-        <Component {...pageProps} />
+        <ToastProvider>
+          <Component {...pageProps} />
+        </ToastProvider>
       </div>
     </>
   );
