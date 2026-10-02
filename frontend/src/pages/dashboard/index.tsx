@@ -47,7 +47,11 @@ export default function DashboardPage() {
 useEffect(() => {
   const fetchDashboardData = async () => {
     try {
-      const response = await apiClient.get("/dashboard");
+      const DASHBOARD_URL = process.env.NEXT_PUBLIC_API_URL
+        ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, "/dashboard")
+        : "http://localhost:5000/dashboard";
+        
+      const response = await apiClient.get(DASHBOARD_URL);
       const result = response.data;
 
       if (result.success) {
