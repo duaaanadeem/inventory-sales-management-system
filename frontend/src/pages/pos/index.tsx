@@ -8,6 +8,9 @@ import {
   ShoppingCart,
   Receipt,
   RefreshCw,
+  User,
+  UserPlus,
+  X,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 
@@ -23,6 +26,13 @@ interface Product {
 
 interface CartItem extends Product {
   quantity: number;
+}
+
+interface Customer {
+  id: number;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
 }
 
 type PaymentMethod = "cash" | "card" | "online";
@@ -94,7 +104,58 @@ export default function POSPage() {
   const [isLoadingSales, setIsLoadingSales] = useState(false);
   const [isLoadingSaleDetails, setIsLoadingSaleDetails] = useState(false);
 
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  // new customer form
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustEmail, setNewCustEmail] = useState("");
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
   const redirectToLogin = () => { window.location.href = "/login"; };
+
+  const CUST_URL = process.env.NEXT_PUBLIC_API_URL
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, "/customers")
+    : "http://localhost:5000/customers";
+
+  const loadCustomers = async (q = "") => {
+    setIsLoadingCustomers(true);
+    try {
+      const res = await fetch(`${CUST_URL}?search=${encodeURIComponent(q)}&limit=50`, { credentials: "include" });
+      if (res.status === 401) { redirectToLogin(); return; }
+      const data = await res.json();
+      if (data.success) setCustomers(data.data?.customers ?? []);
+    } catch { /* silent */ } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  const handleAddCustomer = async () => {
+    if (!newCustName.trim()) return;
+    setIsAddingCustomer(true);
+    try {
+      const res = await fetch(CUST_URL, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCustName.trim(), phone: newCustPhone.trim() || null, email: newCustEmail.trim() || null }),
+      });
+      if (res.status === 401) { redirectToLogin(); return; }
+      const data = await res.json();
+      if (data.success && data.data) {
+        setSelectedCustomer(data.data);
+        setCustomerModalOpen(false);
+        setNewCustName(""); setNewCustPhone(""); setNewCustEmail("");
+        setShowAddForm(false);
+      }
+    } catch { /* silent */ } finally {
+      setIsAddingCustomer(false);
+    }
+  };
 
   const loadSales = async () => {
     setIsLoadingSales(true);
@@ -233,6 +294,7 @@ export default function POSPage() {
         body: JSON.stringify({
           paymentMethod,
           discount: discountAmt.toFixed(2),
+          customerId: selectedCustomer?.id ?? null,
           items: cart.map((item) => ({
             productId: item.id,
             quantity: item.quantity,
@@ -248,6 +310,7 @@ export default function POSPage() {
 
       setCart([]);
       setDiscount(0);
+      setSelectedCustomer(null);
       setSuccessMessage(
         `Sale #${result.data.sale.id} completed. Invoice ${result.data.invoice.invoice_number}.`
       );
@@ -405,25 +468,49 @@ export default function POSPage() {
         {/* RIGHT — Cart */}
         <div className="w-full lg:w-96 xl:w-[420px] bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col lg:h-full">
           {/* Cart header */}
-          <div className="p-3 sm:p-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-base sm:text-lg flex items-center gap-2 text-slate-900">
-              <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center">
-                <ShoppingCart size={16} />
-              </div>
-              Cart
-              <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                {cart.length} items
-              </span>
-            </h2>
-
-            {cart.length > 0 && (
-              <button
-                onClick={() => setCart([])}
-                className="text-red-500 text-sm hover:underline min-h-[44px] px-2"
-              >
-                Clear
-              </button>
-            )}
+          <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-semibold text-base sm:text-lg flex items-center gap-2 text-slate-900">
+                <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-600 flex items-center justify-center">
+                  <ShoppingCart size={16} />
+                </div>
+                Cart
+                <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {cart.length} items
+                </span>
+              </h2>
+              {cart.length > 0 && (
+                <button
+                  onClick={() => setCart([])}
+                  className="text-red-500 text-sm hover:underline min-h-[44px] px-2"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {/* Customer selector chip */}
+            <div className="flex items-center gap-2">
+              {selectedCustomer ? (
+                <div className="flex-1 flex items-center justify-between bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+                  <div className="flex items-center gap-2">
+                    <User size={13} className="text-primary-600 shrink-0" />
+                    <span className="text-sm font-medium text-primary-800 truncate">{selectedCustomer.name}</span>
+                  </div>
+                  <button type="button" onClick={() => setSelectedCustomer(null)} className="text-primary-400 hover:text-primary-700 ml-2">
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setCustomerSearch(""); loadCustomers(""); setCustomerModalOpen(true); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 border border-dashed border-slate-300 rounded-lg py-1.5 text-xs text-slate-500 hover:border-primary-400 hover:text-primary-600 transition-colors"
+                >
+                  <UserPlus size={13} />
+                  Assign customer (optional)
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Cart items */}
@@ -669,6 +756,153 @@ export default function POSPage() {
           </div>
         )}
       </section>
+
+      {/* ── Customer Picker Modal ── */}
+      {customerModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setCustomerModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <h3 className="font-semibold text-slate-900 text-base flex items-center gap-2">
+                <User size={16} className="text-primary-600" />
+                Select Customer
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCustomerModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="p-4 border-b border-slate-100">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  placeholder="Search by name, phone, or email..."
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    loadCustomers(e.target.value);
+                  }}
+                  className="input pl-9 text-sm py-2"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Customer list */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Walk-in option */}
+              <button
+                type="button"
+                onClick={() => { setSelectedCustomer(null); setCustomerModalOpen(false); }}
+                className="w-full text-left px-5 py-3 hover:bg-slate-50 border-b border-slate-100 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                  <User size={14} className="text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Walk-in</p>
+                  <p className="text-xs text-slate-400">No customer attached</p>
+                </div>
+              </button>
+
+              {isLoadingCustomers ? (
+                <p className="text-center text-sm text-slate-400 py-8">Loading...</p>
+              ) : customers.length === 0 && !customerSearch ? (
+                <p className="text-center text-sm text-slate-400 py-8">No customers yet.</p>
+              ) : customers.length === 0 ? (
+                <p className="text-center text-sm text-slate-400 py-8">No results for &ldquo;{customerSearch}&rdquo;</p>
+              ) : (
+                customers.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setSelectedCustomer(c); setCustomerModalOpen(false); }}
+                    className="w-full text-left px-5 py-3 hover:bg-slate-50 border-b border-slate-100 flex items-center gap-3"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-primary-700">{c.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{c.name}</p>
+                      {(c.phone || c.email) && (
+                        <p className="text-xs text-slate-400 truncate">{c.phone || c.email}</p>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Add new customer */}
+            <div className="border-t border-slate-200 p-4">
+              {showAddForm ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">New Customer</p>
+                  <input
+                    type="text"
+                    placeholder="Name *"
+                    value={newCustName}
+                    onChange={(e) => setNewCustName(e.target.value)}
+                    className="input text-sm py-2 w-full"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone"
+                    value={newCustPhone}
+                    onChange={(e) => setNewCustPhone(e.target.value)}
+                    className="input text-sm py-2 w-full"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={newCustEmail}
+                    onChange={(e) => setNewCustEmail(e.target.value)}
+                    className="input text-sm py-2 w-full"
+                  />
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="flex-1 btn-secondary text-sm py-2"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomer}
+                      disabled={!newCustName.trim() || isAddingCustomer}
+                      className="flex-1 btn-primary text-sm py-2 disabled:opacity-50"
+                    >
+                      {isAddingCustomer ? "Adding..." : "Add & Select"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(true)}
+                  className="w-full flex items-center justify-center gap-2 text-sm text-primary-600 hover:text-primary-800 font-medium py-1"
+                >
+                  <UserPlus size={15} />
+                  Add new customer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
-}
+}
