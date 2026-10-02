@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const pool = require('../../config/db');
 const { calculateTotals } = require('./sales.calculations');
+const { logActivity } = require('../activities/activity.service');
+const { createNotification } = require('../notifications/notification.service');
 
 const TAX_RATE = process.env.TAX_RATE || '0';
 const PAYMENT_METHODS = ['cash', 'card', 'online'];
@@ -176,7 +178,33 @@ async function completeSale({ customerId, paymentMethod, items, discount, staffI
 
         await client.query('COMMIT');
 
-        return { sale, totals, items: saleItems, invoice: invoiceResult.rows[0] };
+        // Fire-and-forget: log activity + notification.
+        // These run after the transaction is already committed so a failure
+        // here does NOT roll back the sale.
+        const saleResult_ = { sale, totals, items: saleItems, invoice: invoiceResult.rows[0] };
+        setImmediate(async () => {
+            try {
+                await logActivity({
+                    userId: staffId,
+                    action: `Sale #${sale.id} completed — ${saleItems.length} item(s), total $${totals.total}`,
+                    entityType: 'sale',
+                    entityId: sale.id,
+                });
+            } catch (logErr) {
+                console.error('activity log error (non-fatal):', logErr.message);
+            }
+            try {
+                await createNotification({
+                    type: 'new_sale',
+                    message: `New sale #${sale.id} — $${totals.total} via ${paymentMethod}`,
+                    related_id: sale.id,
+                });
+            } catch (notifErr) {
+                console.error('notification error (non-fatal):', notifErr.message);
+            }
+        });
+
+        return saleResult_;
     } catch (err) {
         if (client) await client.query('ROLLBACK');
         throw toHttpError(err);

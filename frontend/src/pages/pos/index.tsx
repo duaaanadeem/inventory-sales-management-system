@@ -553,7 +553,7 @@ export default function POSPage() {
           </div>
         </div>
       </div>
-      <section className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+      <section className="mt-4 mb-8 rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <h2 className="flex items-center gap-2 font-semibold text-slate-900">
             <Receipt size={18} className="text-primary-600" />
@@ -628,11 +628,21 @@ export default function POSPage() {
               <p className="text-sm text-slate-500">Loading sale details...</p>
             ) : selectedSale ? (
               <div>
-                <h3 className="font-semibold text-slate-900">
-                  Sale #{selectedSale.id}
-                  {selectedInvoice && ` - ${selectedInvoice.invoiceNumber}`}
-                </h3>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-900">
+                    Sale #{selectedSale.id}
+                    {selectedInvoice && ` — ${selectedInvoice.invoiceNumber}`}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedSale(null); setSelectedInvoice(null); }}
+                    className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-200 transition-colors"
+                    aria-label="Close details"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
                   {selectedSale.items.map((item) => (
                     <div key={item.id} className="rounded-md bg-white p-3 text-sm">
                       <div className="flex justify-between gap-3">
