@@ -59,11 +59,11 @@ useEffect(() => {
         showToast("Dashboard data loaded successfully", "success");
       }
     } catch (error: any) {
-      console.error("Error fetching dashboard data:", error);
       if (error.response?.status === 403) {
         showToast("Access denied: Admins only", "fail");
         router.push("/login");
       } else {
+        console.error("Error fetching dashboard data:", error);
         setError("Failed to load dashboard data.");
         showToast("Failed to load dashboard data", "fail");
       }
