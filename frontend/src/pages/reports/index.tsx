@@ -112,7 +112,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Preview Chart */}
-        <SalesChart />
+        <SalesChart data={[]}/>
       </div>
     </DashboardLayout>
   );
