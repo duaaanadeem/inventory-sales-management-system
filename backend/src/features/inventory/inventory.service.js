@@ -1,4 +1,4 @@
-const pool = require('../../config/db');
+const pool = require('../../config/pg-db');
 
 async function applyStockChangeService({ product_id, qty, changeType, source, referenceId, changed_by }) {
     let client;

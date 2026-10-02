@@ -556,3 +556,58 @@ FOR EACH ROW
 EXECUTE FUNCTION check_low_stock();
 
 
+-- 12. NOTIFICATIONS
+
+CREATE TABLE notifications (
+  id          SERIAL PRIMARY KEY,
+
+  type        notification_type NOT NULL,
+
+  message     VARCHAR(255) NOT NULL
+              CHECK (btrim(message) <> ''),
+
+  related_id  INT,
+
+  is_read     BOOLEAN NOT NULL DEFAULT FALSE,
+
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_unread
+ON notifications (is_read)
+WHERE is_read = FALSE;
+
+CREATE INDEX idx_notifications_created
+ON notifications (created_at DESC);
+
+
+-- 13. ACTIVITY LOG
+
+CREATE TABLE activity_log (
+  id           SERIAL PRIMARY KEY,
+
+  user_id      INT NOT NULL
+               REFERENCES users(id)
+               ON UPDATE CASCADE
+               ON DELETE CASCADE,
+
+  action       VARCHAR(255) NOT NULL
+               CHECK (btrim(action) <> ''),
+
+  entity_type  VARCHAR(50),
+
+  entity_id    INT,
+
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_activity_log_created
+ON activity_log (created_at DESC);
+
+CREATE INDEX idx_activity_log_user
+ON activity_log (user_id);
+
+CREATE INDEX idx_activity_log_entity
+ON activity_log (entity_type);
+
+
