@@ -1,27 +1,53 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import type { Category, ProductPayload } from "@/lib/api";
+import { createCategory, type Category, type ProductPayload, type Product } from "@/lib/api";
+import { Plus } from "lucide-react";
 
 interface ProductFormProps {
   categories: Category[];
   onSubmit: (data: ProductPayload) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
+  initialProduct?: Product | null;
 }
 
 export default function ProductForm({
-  categories,
+  categories: initialCategories,
   onSubmit,
   onCancel,
   isSubmitting = false,
+  initialProduct = null,
 }: ProductFormProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm<ProductPayload>({
+  const [categories, setCategories] = useState(initialCategories);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<ProductPayload>({
     defaultValues: {
-      price: "0",
-      cost: "0",
-      minStockLevel: "0",
+      name: initialProduct?.name || "",
+      sku: initialProduct?.sku || "",
+      categoryId: initialProduct?.category_id ? String(initialProduct.category_id) : "",
+      price: initialProduct ? String(initialProduct.price) : "0",
+      cost: initialProduct ? String(initialProduct.cost) : "0",
+      minStockLevel: initialProduct ? String(initialProduct.min_stock_level) : "0",
       openingStock: "0",
     },
   });
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      const res = await createCategory(newCategoryName);
+      setCategories([...categories, res.data]);
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      setCategoryError("");
+      setValue("categoryId", String(res.data.id));
+    } catch (e) {
+      setCategoryError(e instanceof Error ? e.message : "Failed to add category");
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -47,15 +73,47 @@ export default function ProductForm({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5">Category</label>
-          <select {...register("categoryId")} className="input">
-            <option value="">No category</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex justify-between items-center mb-1.5">
+            <label className="block text-sm font-medium">Category</label>
+            <button
+              type="button"
+              onClick={() => setIsAddingCategory(!isAddingCategory)}
+              className="text-xs text-primary-600 hover:text-primary-700 flex items-center font-medium"
+            >
+              <Plus size={12} className="mr-0.5" /> New
+            </button>
+          </div>
+
+          {isAddingCategory ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="New category name"
+                  className="input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); void handleAddCategory(); }}
+                  className="btn-primary px-3 text-sm"
+                >
+                  Add
+                </button>
+              </div>
+              {categoryError && <p className="text-xs text-rose-600">{categoryError}</p>}
+            </div>
+          ) : (
+            <select {...register("categoryId")} className="input">
+              <option value="">No category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div>
@@ -80,10 +138,12 @@ export default function ProductForm({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Opening Stock</label>
-          <input type="number" min="0" step="1" {...register("openingStock")} className="input" />
-        </div>
+        {!initialProduct && (
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Opening Stock</label>
+            <input type="number" min="0" step="1" {...register("openingStock")} className="input" />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium mb-1.5">Minimum Stock Level</label>

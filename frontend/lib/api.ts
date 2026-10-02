@@ -95,3 +95,31 @@ export async function createProduct(payload: ProductPayload) {
 export async function deleteProduct(id: number) {
   return request<unknown>(`/api/products/${id}`, { method: "DELETE" });
 }
+
+export async function updateProduct(id: number, payload: ProductPayload) {
+  const formData = new FormData();
+  if (payload.sku) formData.append("sku", payload.sku);
+  if (payload.name) formData.append("name", payload.name);
+  if (payload.price) formData.append("price", String(payload.price));
+  if (payload.cost) formData.append("cost", String(payload.cost));
+  if (payload.minStockLevel !== undefined) formData.append("minStockLevel", String(payload.minStockLevel));
+  if (payload.categoryId) formData.append("categoryId", payload.categoryId);
+  
+  const imageFile = payload.image instanceof FileList ? payload.image[0] : payload.image;
+  if (imageFile) formData.append("image", imageFile);
+
+  return request<Product>(`/api/products/${id}`, {
+    method: "PUT",
+    body: formData,
+  });
+}
+
+export async function createCategory(name: string) {
+  return request<Category>("/api/categories", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+}

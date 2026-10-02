@@ -4,8 +4,8 @@ import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import Modal from "@/src/components/ui/Modal";
 import ProductForm from "@/src/components/forms/ProductForm";
-import { API_BASE_URL, createProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
-import { ImageIcon, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { API_BASE_URL, createProduct, updateProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
+import { ImageIcon, Plus, RefreshCw, Search, Trash2, Edit2 } from "lucide-react";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -13,10 +13,16 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -47,10 +53,25 @@ export default function ProductsPage() {
     setError("");
     try {
       await createProduct(payload);
-      setIsModalOpen(false);
+      handleCloseModal();
       await loadData();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to create product");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (payload: ProductPayload) => {
+    if (!editingProduct) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await updateProduct(editingProduct.id, payload);
+      handleCloseModal();
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to update product");
     } finally {
       setIsSubmitting(false);
     }
@@ -162,13 +183,28 @@ export default function ProductsPage() {
             {
               key: "actions",
               label: "",
-              render: (r) => <button onClick={() => void handleDelete(r.id)} className="p-2 text-slate-400 hover:text-rose-600" aria-label={`Delete ${r.name}`}><Trash2 size={17} /></button>,
+              render: (r) => (
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => { setEditingProduct(r); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-primary-600" aria-label={`Edit ${r.name}`}>
+                    <Edit2 size={17} />
+                  </button>
+                  <button onClick={() => void handleDelete(r.id)} className="p-2 text-slate-400 hover:text-rose-600" aria-label={`Delete ${r.name}`}>
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+              ),
             },
           ]}
         />}
       </div>
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Product">
-        <ProductForm categories={categories} onSubmit={handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} />
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingProduct ? "Edit Product" : "Add Product"}>
+        <ProductForm 
+          categories={categories} 
+          onSubmit={editingProduct ? handleUpdate : handleCreate} 
+          onCancel={handleCloseModal} 
+          isSubmitting={isSubmitting}
+          initialProduct={editingProduct} 
+        />
       </Modal>
     </DashboardLayout>
   );

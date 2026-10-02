@@ -9,6 +9,7 @@ import {
   Receipt,
   RefreshCw,
 } from "lucide-react";
+import { API_BASE_URL } from "@/lib/api";
 
 interface Product {
   id: number;
@@ -17,6 +18,7 @@ interface Product {
   price: number;
   stock: number;
   category: string;
+  image_url?: string | null;
 }
 
 interface CartItem extends Product {
@@ -159,6 +161,7 @@ export default function POSPage() {
             price: Number(product.price),
             stock: Number(product.current_stock || 0),
             category: product.category_name || "Uncategorized",
+            image_url: product.image_url,
           }))
         );
       } catch (requestError) {
@@ -371,8 +374,12 @@ export default function POSPage() {
                              disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {/* Image / placeholder — FIXED height */}
-                  <div className="w-full h-24 sm:h-28 bg-slate-100 rounded-lg flex items-center justify-center mb-2 shrink-0">
-                    <ShoppingCart size={28} className="text-slate-300" />
+                  <div className="w-full h-24 sm:h-28 bg-slate-100 rounded-lg flex items-center justify-center mb-2 shrink-0 overflow-hidden">
+                    {product.image_url ? (
+                      <img src={`${API_BASE_URL}${product.image_url}`} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <ShoppingCart size={28} className="text-slate-300" />
+                    )}
                   </div>
 
                   {/* Product name — clamped */}
