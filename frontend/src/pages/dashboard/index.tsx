@@ -43,8 +43,10 @@ useEffect(() => {
   const fetchDashboardData = async () => {
     try {
       const response = await fetch(
-        "http://localhost:5000/dashboard"
+        "http://localhost:5000/dashboard",
+        { credentials: "include" }
       );
+      if (response.status === 401) { window.location.href = "/login"; return; }
 
       const result = await response.json();
 

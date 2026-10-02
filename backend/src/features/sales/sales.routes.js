@@ -2,18 +2,19 @@ const express = require('express');
 const router = express.Router();
 const salesController = require('./sales.controller');
 const { validateSale, validateSaleId } = require('./sales.validation');
-const authenticateUser = require('../../middleware/authenticateUser');
+const { verifyToken } = require('../../middleware/auth');
 const requireStaff = require('../../middleware/requireStaff');
 
 // Declared before /:id so "products" is not captured as a sale id.
+// Product search is public — no auth needed to load the POS grid.
 router.get('/products/search', salesController.searchProducts);
 
-router.post('/', authenticateUser, requireStaff, validateSale, salesController.createSale);
+router.post('/', verifyToken, requireStaff, validateSale, salesController.createSale);
 
-router.get('/', authenticateUser, salesController.listSales);
+router.get('/', verifyToken, salesController.listSales);
 
-router.get('/:id', authenticateUser, validateSaleId, salesController.getSale);
+router.get('/:id', verifyToken, validateSaleId, salesController.getSale);
 
-router.get('/:id/invoice', authenticateUser, validateSaleId, salesController.getInvoice);
+router.get('/:id/invoice', verifyToken, validateSaleId, salesController.getInvoice);
 
 module.exports = router;

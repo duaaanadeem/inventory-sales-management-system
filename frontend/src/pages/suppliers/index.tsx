@@ -30,7 +30,8 @@ export default function SuppliersPage() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5000/api/suppliers");
+      const res = await fetch("http://localhost:5000/api/suppliers", { credentials: "include" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       if (data.success) {
         setSuppliers(data.data);
@@ -55,9 +56,11 @@ export default function SuppliersPage() {
     try {
       const res = await fetch("http://localhost:5000/api/suppliers", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, company, phone, email, address }),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       if (data.success) {
         setAddOpen(false);
@@ -83,7 +86,8 @@ export default function SuppliersPage() {
     setIsLoadingHistory(true);
     setSupplierHistory(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/suppliers/${supplier.id}/summary`);
+      const res = await fetch(`http://localhost:5000/api/suppliers/${supplier.id}/summary`, { credentials: "include" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       if (data.success) {
         setSupplierHistory(data.data);

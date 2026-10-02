@@ -74,6 +74,7 @@ export default function InventoryPage() {
     try {
       const res = await fetch(`http://localhost:5000${endpoint}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           product_id: parseInt(productId),
@@ -81,6 +82,7 @@ export default function InventoryPage() {
           reference_id: referenceId || `${adjustmentType}_${Date.now()}`
         })
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       if (data.success) {
         setAdjustOpen(false);

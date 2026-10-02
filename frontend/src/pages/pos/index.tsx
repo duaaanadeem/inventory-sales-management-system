@@ -94,17 +94,13 @@ export default function POSPage() {
   const [isLoadingSales, setIsLoadingSales] = useState(false);
   const [isLoadingSaleDetails, setIsLoadingSaleDetails] = useState(false);
 
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = window.localStorage.getItem("token");
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  const redirectToLogin = () => { window.location.href = "/login"; };
 
   const loadSales = async () => {
     setIsLoadingSales(true);
     try {
-      const response = await fetch(`${API_URL}/sales`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(`${API_URL}/sales`, { credentials: "include" });
+      if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<SaleSummary[]> = await response.json();
 
       if (!response.ok || !result.success || !result.data) {
@@ -135,7 +131,7 @@ export default function POSPage() {
       try {
         const response = await fetch(
           `${API_URL}/sales/products/search?q=${encodeURIComponent(search)}`,
-          { signal: controller.signal }
+          { signal: controller.signal, credentials: "include" }
         );
         const result: ApiResponse<
           Array<{
@@ -232,10 +228,8 @@ export default function POSPage() {
     try {
       const response = await fetch(`${API_URL}/sales`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentMethod,
           discount: discountAmt.toFixed(2),
@@ -245,6 +239,7 @@ export default function POSPage() {
           })),
         }),
       });
+      if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<SaleResponse> = await response.json();
 
       if (!response.ok || !result.success || !result.data) {
@@ -275,9 +270,8 @@ export default function POSPage() {
     setError("");
 
     try {
-      const response = await fetch(`${API_URL}/sales/${saleId}`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(`${API_URL}/sales/${saleId}`, { credentials: "include" });
+      if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<SaleDetails> = await response.json();
 
       if (!response.ok || !result.success || !result.data) {
@@ -299,9 +293,8 @@ export default function POSPage() {
     setError("");
 
     try {
-      const response = await fetch(`${API_URL}/sales/${saleId}/invoice`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetch(`${API_URL}/sales/${saleId}/invoice`, { credentials: "include" });
+      if (response.status === 401) { redirectToLogin(); return; }
       const result: ApiResponse<InvoiceResponse> = await response.json();
 
       if (!response.ok || !result.success || !result.data) {

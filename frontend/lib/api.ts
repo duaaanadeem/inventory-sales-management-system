@@ -13,7 +13,18 @@ interface ApiResponse<T> {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: "include",
+    ...options,
+  });
+
+  if (response.status === 401) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    throw new Error("Unauthenticated");
+  }
+
   const body = (await response.json()) as ApiResponse<T>;
 
   if (!response.ok || !body.success) {

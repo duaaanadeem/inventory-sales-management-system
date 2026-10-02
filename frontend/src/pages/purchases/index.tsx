@@ -87,9 +87,11 @@ export default function PurchasesPage() {
 
       const res = await fetch("http://localhost:5000/api/purchases", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       
       if (data.success) {
@@ -115,7 +117,8 @@ export default function PurchasesPage() {
     setError("");
 
     try {
-      const res = await fetch(`http://localhost:5000/api/purchases/${id}/items`);
+      const res = await fetch(`http://localhost:5000/api/purchases/${id}/items`, { credentials: "include" });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       if (data.success) {
         setDamageItems(
@@ -158,9 +161,11 @@ export default function PurchasesPage() {
 
       const res = await fetch(`http://localhost:5000/api/purchases/${damageTargetId}/complete`, {
         method: "PUT",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ damaged_items })
       });
+      if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       
       if (data.success) {
