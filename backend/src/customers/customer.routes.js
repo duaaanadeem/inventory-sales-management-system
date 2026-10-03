@@ -4,7 +4,7 @@ const ctrl = require('./customer.controller');
 
 let rateLimit;
 try { rateLimit = require('express-rate-limit'); }
-catch (e) { rateLimit = () => (req, res, next) => next(); } // same fallback pattern as routes/inventory.js
+catch (e) { rateLimit = () => (req, res, next) => next(); }
 
 const router = express.Router();
 

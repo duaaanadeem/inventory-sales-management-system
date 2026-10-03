@@ -97,3 +97,101 @@ export const activitiesApi = {
     return request("/activities/summary");
   },
 };
+// Adapter: backend returns NUMERIC columns as strings (pg driver default) -
+// keep raw, format with toCurrency() at render time instead of parsing here.
+export interface Customer {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  total_spending: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  orders_count?: number;
+  last_purchase_at?: string | null;
+}
+
+export interface CustomerPayload {
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
+export interface CustomerListResult {
+  customers: Customer[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export interface CustomerPurchase {
+  id: number;
+  created_at: string;
+  subtotal: string;
+  discount: string;
+  tax: string;
+  total: string;
+  payment_method: string;
+  status: "completed" | "pending" | "cancelled";
+  invoice_number: string | null;
+  items: Array<{
+    product_id: number;
+    name: string;
+    sku: string;
+    quantity: number;
+    unit_price: string;
+    line_total: string;
+  }>;
+}
+
+export interface CustomerPurchaseResult {
+  purchases: CustomerPurchase[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export const customersApi = {
+  async list(
+    params: { search?: string; sort?: string; order?: string; page?: number; limit?: number } = {}
+  ): Promise<CustomerListResult> {
+    const query = new URLSearchParams();
+    if (params.search) query.set("search", params.search);
+    if (params.sort) query.set("sort", params.sort);
+    if (params.order) query.set("order", params.order);
+    query.set("page", String(params.page || 1));
+    query.set("limit", String(params.limit || 10));
+    return request<CustomerListResult>(`/customers?${query.toString()}`);
+  },
+
+  async count(): Promise<{ total: number }> {
+    return request("/customers/count");
+  },
+
+  async get(id: number): Promise<{ customer: Customer }> {
+    return request(`/customers/${id}`);
+  },
+
+  async create(payload: CustomerPayload): Promise<{ customer: Customer }> {
+    return request("/customers", { method: "POST", body: JSON.stringify(payload) });
+  },
+
+  async update(id: number, payload: CustomerPayload): Promise<{ customer: Customer }> {
+    return request(`/customers/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+
+  async remove(id: number): Promise<void> {
+    await request(`/customers/${id}`, { method: "DELETE" });
+  },
+
+  async purchases(
+    id: number,
+    params: { from?: string; to?: string; page?: number; limit?: number } = {}
+  ): Promise<CustomerPurchaseResult> {
+    const query = new URLSearchParams();
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    query.set("page", String(params.page || 1));
+    query.set("limit", String(params.limit || 5));
+    return request<CustomerPurchaseResult>(`/customers/${id}/purchases?${query.toString()}`);
+  },
+};
