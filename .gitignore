@@ -144,3 +144,4 @@ vite.config.ts.timestamp-*
 
 # Uploaded product images
 backend/uploads/
+!backend/uploads/README.txt

@@ -53,6 +53,9 @@ app.use("/api/purchases", purchaseRoutes);
 const authRoutes = require("./src/features/auth/auth.routes");
 app.use("/api/auth", authRoutes);
 
+const reportsRoutes = require("./src/features/reports/reports.routes");
+app.use("/api/reports", reportsRoutes);
+
 app.get("/", (req, res) => {
   res.json({
     success: true,

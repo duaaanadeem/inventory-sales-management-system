@@ -195,3 +195,18 @@ export const customersApi = {
     return request<CustomerPurchaseResult>(`/customers/${id}/purchases?${query.toString()}`);
   },
 };
+
+export const reportsApi = {
+  sales: (type: string, from: string, to: string) => 
+    request(`/reports/sales?type=${type}&from=${from}&to=${to}`),
+  products: (from: string, to: string, limit: number = 10) => 
+    request(`/reports/products?from=${from}&to=${to}&limit=${limit}`),
+  inventory: (productId?: string) => 
+    request(`/reports/inventory${productId ? `?productId=${productId}` : ''}`),
+  profit: (from: string, to: string) => 
+    request(`/reports/profit?from=${from}&to=${to}`),
+  customers: (from: string, to: string, limit: number = 10) => 
+    request(`/reports/customers?from=${from}&to=${to}&limit=${limit}`),
+  suppliers: (from: string, to: string) => 
+    request(`/reports/suppliers?from=${from}&to=${to}`),
+};
