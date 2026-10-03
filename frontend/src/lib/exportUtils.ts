@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export function exportToCsv(filename: string, rows: any[]) {
   if (!rows || !rows.length) return;
@@ -44,7 +44,7 @@ export function exportToPdf(title: string, filename: string, columns: string[], 
   doc.setTextColor(100);
   doc.text(`Generated on ${new Date().toLocaleString()}`, 14, 30);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: 36,
     head: [columns],
     body: rows,
@@ -55,4 +55,5 @@ export function exportToPdf(title: string, filename: string, columns: string[], 
 
   doc.save(`${filename}.pdf`);
 }
+
 
