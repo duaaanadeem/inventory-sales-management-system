@@ -7,6 +7,7 @@ import type { Customer, CustomerPurchase } from "@/src/lib/api";
 import { Search, Plus, Loader2 } from "lucide-react";
 import Pagination from "@/src/components/ui/Pagination";
 import { useUrlPagination } from "@/src/hooks/useUrlPagination";
+import { useToast } from "@/src/context/ToastContext";
 
 const toCurrency = (v: string | number) =>
   `$${Number(v || 0).toFixed(2)}`;
@@ -20,6 +21,7 @@ export default function CustomersPage() {
   const [totalItems, setTotalItems] = useState(0);
   const [loadError, setLoadError] = useState("");
   const { page, limit, setPage, setLimit } = useUrlPagination(20);
+  const { showToast } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -74,10 +76,12 @@ export default function CustomersPage() {
       await customersApi.create(form);
       setAddOpen(false);
       setForm(EMPTY_FORM);
+      showToast("Customer added successfully", "success");
       await loadCustomers();
     } catch (err: any) {
       if (err?.details && typeof err.details === "object") setFormErrors(err.details);
       else setFormErrors({ _form: err instanceof Error ? err.message : "Could not add customer." });
+      showToast("Failed to add customer", "fail");
     } finally {
       setSaving(false);
     }

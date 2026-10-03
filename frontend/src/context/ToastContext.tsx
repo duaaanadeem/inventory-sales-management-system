@@ -22,10 +22,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
 
-    // Auto dismiss after 3 seconds
+    // Auto dismiss after 2 seconds
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, 2000);
   };
 
   const removeToast = (id: number) => {
@@ -79,3 +79,4 @@ export function useToast() {
   }
   return context;
 }
+

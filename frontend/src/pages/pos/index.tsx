@@ -15,7 +15,9 @@ import {
 import { API_BASE_URL } from "@/lib/api";
 import apiClient from "@/src/lib/apiClient";
 import Pagination from "@/src/components/ui/Pagination";
+import Modal from "@/src/components/ui/Modal";
 import { useUrlPagination } from "@/src/hooks/useUrlPagination";
+import { useToast } from "@/src/context/ToastContext";
 
 interface Product {
   id: number;
@@ -113,6 +115,7 @@ export default function POSPage() {
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearch, setCustomerSearch] = useState("");
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
@@ -148,8 +151,11 @@ export default function POSPage() {
         setCustomerModalOpen(false);
         setNewCustName(""); setNewCustPhone(""); setNewCustEmail("");
         setShowAddForm(false);
+        showToast("Customer added successfully", "success");
       }
-    } catch { /* silent */ } finally {
+    } catch { 
+      showToast("Failed to add customer", "fail");
+    } finally {
       setIsAddingCustomer(false);
     }
   };
@@ -298,14 +304,13 @@ export default function POSPage() {
       setSuccessMessage(
         `Sale #${result.data.sale.id} completed. Invoice ${result.data.invoice.invoice_number}.`
       );
+      showToast("Sale completed successfully", "success");
       setSearch("");
       await loadSales();
     } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to complete sale."
-      );
+      const errorMsg = requestError instanceof Error ? requestError.message : "Unable to complete sale.";
+      setError(errorMsg);
+      showToast(errorMsg, "fail");
     } finally {
       setIsSubmitting(false);
     }
@@ -703,33 +708,16 @@ export default function POSPage() {
       </section>
 
       {/* ── Sale Details Modal ── */}
-      {(isLoadingSaleDetails || selectedSale || selectedInvoice) && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => { setSelectedSale(null); setSelectedInvoice(null); }}
-        >
-          <div
-            className="w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="font-semibold text-slate-900 text-lg flex items-center gap-2">
-                <Receipt size={20} className="text-primary-600" />
-                Sale Details
-              </h3>
-              <button
-                type="button"
-                onClick={() => { setSelectedSale(null); setSelectedInvoice(null); }}
-                className="text-slate-400 hover:text-slate-700 p-1.5 rounded hover:bg-slate-100 transition-colors"
-                aria-label="Close details"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal body */}
-            <div className="p-5 overflow-y-auto">
+      <Modal
+        isOpen={!!(isLoadingSaleDetails || selectedSale || selectedInvoice)}
+        onClose={() => { setSelectedSale(null); setSelectedInvoice(null); }}
+        title={
+          <span className="flex items-center gap-2">
+            <Receipt size={20} className="text-primary-600" />
+            Sale Details
+          </span>
+        }
+      >
               {isLoadingSaleDetails ? (
                 <div className="flex justify-center items-center py-12">
                   <RefreshCw size={24} className="text-primary-500 animate-spin" />
@@ -814,35 +802,19 @@ export default function POSPage() {
                   )}
                 </div>
               ) : null}
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Customer Picker Modal ── */}
-      {customerModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setCustomerModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="font-semibold text-slate-900 text-base flex items-center gap-2">
-                <User size={16} className="text-primary-600" />
-                Select Customer
-              </h3>
-              <button
-                type="button"
-                onClick={() => setCustomerModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <Modal
+        isOpen={customerModalOpen}
+        onClose={() => setCustomerModalOpen(false)}
+        title={
+          <span className="flex items-center gap-2">
+            <User size={16} className="text-primary-600" />
+            Select Customer
+          </span>
+        }
+      >
 
             {/* Search */}
             <div className="p-4 border-b border-slate-100">
@@ -962,12 +934,11 @@ export default function POSPage() {
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </DashboardLayout>
   );
-}
+}
+
 
 
 

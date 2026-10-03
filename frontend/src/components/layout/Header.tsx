@@ -68,6 +68,7 @@ import {
 import { notifications as mockNotifications, timeAgo } from "@/src/lib/mockData";
 import type { AppNotification, NotificationType } from "@/src/lib/mockData";
 import { notificationsApi } from "@/src/lib/api";
+import { useToast } from "@/src/context/ToastContext";
 
 const bellIcons: Record<NotificationType, { icon: any; color: string }> = {
   low_stock: { icon: AlertTriangle, color: "text-amber-600" },
@@ -150,6 +151,7 @@ export default function Header() {
     router.push(path);
   };
 
+  const { showToast } = useToast();
   const handleLogout = async () => {
     try {
       await apiClient.post("/auth/logout");
@@ -157,6 +159,7 @@ export default function Header() {
       console.error("Logout failed", err);
     } finally {
       localStorage.removeItem("user");
+      showToast("Logged out successfully", "success");
       go("/login");
     }
   };

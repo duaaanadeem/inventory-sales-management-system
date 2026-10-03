@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { Boxes, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 import apiClient from "@/src/lib/apiClient";
+import { useToast } from "@/src/context/ToastContext";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { showToast } = useToast();
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -27,14 +29,19 @@ export default function LoginPage() {
         if (data.user) {
           localStorage.setItem("user", JSON.stringify(data.user));
         }
+        showToast("Successfully logged in!", "success");
         // Redirect to dashboard (or wherever)
         router.push("/dashboard");
       } else {
-        setError(data.message || "Failed to log in.");
+        const errorMsg = data.message || "Failed to log in.";
+        setError(errorMsg);
+        showToast(errorMsg, "fail");
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || err.response?.data?.error || "Unable to connect to the server. Is the backend running?");
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Unable to connect to the server. Is the backend running?";
+      setError(errorMsg);
+      showToast(errorMsg, "fail");
     } finally {
       setIsLoading(false);
     }
