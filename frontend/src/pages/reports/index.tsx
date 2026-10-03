@@ -3,7 +3,7 @@ import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import SalesChart from "@/src/components/dashboard/SalesChart";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import { reportsApi } from "@/src/lib/api";
-import { exportToCsv } from "@/src/lib/exportUtils";
+import { exportToCsv, exportToPdf } from "@/src/lib/exportUtils";
 import {
   Download,
   Calendar,
@@ -113,6 +113,52 @@ export default function ReportsPage() {
     else if (activeReport === 'suppliers') rows = data.suppliers || [];
 
     exportToCsv(`${activeReport}_report_${from}_to_${to}`, rows);
+  };
+
+  const handleExportPdf = () => {
+    if (!data) return;
+    
+    let rows: any[] = [];
+    if (activeReport === 'daily' || activeReport === 'weekly' || activeReport === 'monthly') {
+      const labArray = data.labels || [];
+      const revArray = data.revenue || [];
+      const ordArray = data.orders || [];
+      const avgArray = data.avg_order_value || [];
+      
+      rows = labArray.map((label: string, i: number) => ({
+        Date: label,
+        Revenue: revArray[i] || 0,
+        Orders: ordArray[i] || 0,
+        'Avg Order Value': avgArray[i] || 0
+      }));
+    } else if (activeReport === 'products') rows = data.products || [];
+    else if (activeReport === 'inventory') rows = data.items || [];
+    else if (activeReport === 'profit') rows = data.items || [];
+    else if (activeReport === 'customers') rows = data.customers || [];
+    else if (activeReport === 'suppliers') rows = data.suppliers || [];
+
+    if (!rows.length) return;
+
+    const columns = Object.keys(rows[0]);
+    const tableData = rows.map(r => columns.map(c => r[c]));
+
+    const titleMap: Record<string, string> = {
+      daily: "Daily Sales Report",
+      weekly: "Weekly Sales Report",
+      monthly: "Monthly Business Report",
+      products: "Product Sales Report",
+      inventory: "Inventory Report",
+      profit: "Profit Report",
+      customers: "Customer Report",
+      suppliers: "Supplier Purchases Report",
+    };
+    
+    exportToPdf(
+      titleMap[activeReport] || "Report", 
+      `${activeReport}_report_${from}_to_${to}`, 
+      columns, 
+      tableData
+    );
   };
 
   const renderDataView = () => {
@@ -298,7 +344,7 @@ export default function ReportsPage() {
             </button>
             <button 
               className="btn-secondary flex-1 sm:flex-none text-sm py-2"
-              onClick={() => alert("PDF Export coming soon.")}
+              onClick={handleExportPdf}
               disabled={!data || loading}
             >
               <Download size={16} className="mr-2" />

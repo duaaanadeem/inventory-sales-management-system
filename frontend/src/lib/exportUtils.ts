@@ -1,3 +1,6 @@
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
 export function exportToCsv(filename: string, rows: any[]) {
   if (!rows || !rows.length) return;
 
@@ -31,3 +34,25 @@ export function exportToCsv(filename: string, rows: any[]) {
   link.click();
   document.body.removeChild(link);
 }
+
+export function exportToPdf(title: string, filename: string, columns: string[], rows: any[][]) {
+  const doc = new jsPDF();
+  
+  doc.setFontSize(18);
+  doc.text(title, 14, 22);
+  doc.setFontSize(11);
+  doc.setTextColor(100);
+  doc.text(`Generated on ${new Date().toLocaleString()}`, 14, 30);
+
+  (doc as any).autoTable({
+    startY: 36,
+    head: [columns],
+    body: rows,
+    theme: 'striped',
+    headStyles: { fillColor: [15, 118, 110] }, // teal-700
+    styles: { fontSize: 10, cellPadding: 3 },
+  });
+
+  doc.save(`${filename}.pdf`);
+}
+
