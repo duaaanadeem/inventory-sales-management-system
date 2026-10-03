@@ -12,15 +12,40 @@ interface ApiResponse<T> {
   };
 }
 
+import apiClient from "@/src/lib/apiClient";
+
 async function request<T>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
-  const body = (await response.json()) as ApiResponse<T>;
+  try {
+    // If path starts with /api, strip it since apiClient uses /api baseURL
+    const url = path.replace(/^\/api/, "");
+    
+    // Parse stringified JSON bodies for Axios
+    let data = options?.body as any;
+    if (typeof data === 'string' && options?.headers && (options.headers as any)['Content-Type'] === 'application/json') {
+      try { data = JSON.parse(data); } catch (e) {}
+    }
 
-  if (!response.ok || !body.success) {
-    throw new Error(body.error || body.message || "Request failed");
+    const response = await apiClient({
+      url,
+      method: options?.method || "GET",
+      data,
+      headers: options?.headers as any,
+    });
+    return response.data as ApiResponse<T>;
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new Error("Access denied: You do not have permission");
+    }
+    
+    // apiClient already handles 401 and refresh token logic
+    if (error.response?.data) {
+      throw new Error(error.response.data.error || error.response.data.message || "Request failed");
+    }
+    throw new Error(error.message || "Request failed");
   }
-
-  return body;
 }
 
 export interface Category {
@@ -94,4 +119,32 @@ export async function createProduct(payload: ProductPayload) {
 
 export async function deleteProduct(id: number) {
   return request<unknown>(`/api/products/${id}`, { method: "DELETE" });
+}
+
+export async function updateProduct(id: number, payload: ProductPayload) {
+  const formData = new FormData();
+  if (payload.sku) formData.append("sku", payload.sku);
+  if (payload.name) formData.append("name", payload.name);
+  if (payload.price) formData.append("price", String(payload.price));
+  if (payload.cost) formData.append("cost", String(payload.cost));
+  if (payload.minStockLevel !== undefined) formData.append("minStockLevel", String(payload.minStockLevel));
+  if (payload.categoryId) formData.append("categoryId", payload.categoryId);
+  
+  const imageFile = payload.image instanceof FileList ? payload.image[0] : payload.image;
+  if (imageFile) formData.append("image", imageFile);
+
+  return request<Product>(`/api/products/${id}`, {
+    method: "PUT",
+    body: formData,
+  });
+}
+
+export async function createCategory(name: string) {
+  return request<Category>("/api/categories", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
 }

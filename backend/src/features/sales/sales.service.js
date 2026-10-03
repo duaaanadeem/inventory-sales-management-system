@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const pool = require('../../config/db');
 const { calculateTotals } = require('./sales.calculations');
+const { logActivity } = require('../activities/activity.service');
+const { createNotification } = require('../notifications/notification.service');
 
 const TAX_RATE = process.env.TAX_RATE || '0';
 const PAYMENT_METHODS = ['cash', 'card', 'online'];
@@ -176,7 +178,33 @@ async function completeSale({ customerId, paymentMethod, items, discount, staffI
 
         await client.query('COMMIT');
 
-        return { sale, totals, items: saleItems, invoice: invoiceResult.rows[0] };
+        // Fire-and-forget: log activity + notification.
+        // These run after the transaction is already committed so a failure
+        // here does NOT roll back the sale.
+        const saleResult_ = { sale, totals, items: saleItems, invoice: invoiceResult.rows[0] };
+        setImmediate(async () => {
+            try {
+                await logActivity({
+                    userId: staffId,
+                    action: `Sale #${sale.id} completed — ${saleItems.length} item(s), total $${totals.total}`,
+                    entityType: 'sale',
+                    entityId: sale.id,
+                });
+            } catch (logErr) {
+                console.error('activity log error (non-fatal):', logErr.message);
+            }
+            try {
+                await createNotification({
+                    type: 'new_sale',
+                    message: `New sale #${sale.id} — $${totals.total} via ${paymentMethod}`,
+                    related_id: sale.id,
+                });
+            } catch (notifErr) {
+                console.error('notification error (non-fatal):', notifErr.message);
+            }
+        });
+
+        return saleResult_;
     } catch (err) {
         if (client) await client.query('ROLLBACK');
         throw toHttpError(err);
@@ -186,22 +214,36 @@ async function completeSale({ customerId, paymentMethod, items, discount, staffI
 }
 
 // Sales history with an item count and per-sale item revenue.
-async function listSales() {
-    const result = await pool.query(
-        `SELECT s.id, s.customer_id, c.name AS customer_name, s.staff_id,
-                s.subtotal, s.discount, s.tax, s.total, s.payment_method,
-                s.status, s.created_at, i.invoice_number,
-                COALESCE(SUM(si.quantity), 0)::int AS item_count,
-                COALESCE(SUM(si.line_total), 0)::numeric(12,2) AS item_revenue
-         FROM sales s
-         LEFT JOIN customers c ON c.id = s.customer_id
-         LEFT JOIN invoices i ON i.sale_id = s.id
-         LEFT JOIN sale_items si ON si.sale_id = s.id
-         GROUP BY s.id, c.name, i.invoice_number
-         ORDER BY s.created_at DESC`
-    );
+async function listSales({ page = 1, limit = 20 } = {}) {
+    const offset = (page - 1) * limit;
 
-    return result.rows;
+    const [result, countResult] = await Promise.all([
+        pool.query(
+            `SELECT s.id, s.customer_id, c.name AS customer_name, s.staff_id,
+                    s.subtotal, s.discount, s.tax, s.total, s.payment_method,
+                    s.status, s.created_at, i.invoice_number,
+                    COALESCE(SUM(si.quantity), 0)::int AS item_count,
+                    COALESCE(SUM(si.line_total), 0)::numeric(12,2) AS item_revenue
+             FROM sales s
+             LEFT JOIN customers c ON c.id = s.customer_id
+             LEFT JOIN invoices i ON i.sale_id = s.id
+             LEFT JOIN sale_items si ON si.sale_id = s.id
+             GROUP BY s.id, c.name, i.invoice_number
+             ORDER BY s.created_at DESC
+             LIMIT $1 OFFSET $2`, [limit, offset]
+        ),
+        pool.query(`SELECT COUNT(*)::int AS total FROM sales`)
+    ]);
+
+    return {
+        sales: result.rows,
+        pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total: countResult.rows[0].total,
+            totalPages: Math.ceil(countResult.rows[0].total / limit)
+        }
+    };
 }
 
 // A single sale plus its item snapshots.

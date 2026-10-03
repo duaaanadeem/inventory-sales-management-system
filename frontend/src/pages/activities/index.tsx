@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/src/components/layout/DashboardLayout";
+import Pagination from "@/src/components/ui/Pagination";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import { activities as mockActivities, timeAgo } from "@/src/lib/mockData";
 import type { ActivityEntry, EntityType } from "@/src/lib/mockData";
@@ -273,3 +275,6 @@ export default function ActivitiesPage() {
     </DashboardLayout>
   );
 }
+
+
+

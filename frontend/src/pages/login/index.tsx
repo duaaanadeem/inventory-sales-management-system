@@ -1,11 +1,51 @@
 import AuthLayout from "@/src/components/layout/AuthLayout";
 import Link from "next/link";
 import { useState } from "react";
-import { Boxes, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/router";
+import { Boxes, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+
+import apiClient from "@/src/lib/apiClient";
+import { useToast } from "@/src/context/ToastContext";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"admin" | "staff">("admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+  const { showToast } = useToast();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const res = await apiClient.post("/auth/login", { email, password });
+      const data = res.data;
+      
+      if (data.success) {
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+        showToast("Successfully logged in!", "success");
+        // Redirect to dashboard (or wherever)
+        router.push("/dashboard");
+      } else {
+        const errorMsg = data.message || "Failed to log in.";
+        setError(errorMsg);
+        showToast(errorMsg, "fail");
+      }
+    } catch (err: any) {
+      console.error(err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || "Unable to connect to the server. Is the backend running?";
+      setError(errorMsg);
+      showToast(errorMsg, "fail");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <AuthLayout>
@@ -41,7 +81,13 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <form className="space-y-4">
+        {error && (
+          <div className="bg-rose-50 text-rose-600 p-3 rounded-md text-sm mb-4">
+            {error}
+          </div>
+        )}
+
+        <form className="space-y-4" onSubmit={handleLogin}>
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -56,6 +102,8 @@ export default function LoginPage() {
                 type="email"
                 placeholder="you@example.com"
                 className="input pl-10"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -75,6 +123,8 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 className="input pl-10 pr-10"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
               <button
@@ -99,7 +149,8 @@ export default function LoginPage() {
           </div>
 
           {/* Submit */}
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2" disabled={isLoading}>
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
             Sign In as {role === "admin" ? "Admin" : "Staff"}
           </button>
         </form>

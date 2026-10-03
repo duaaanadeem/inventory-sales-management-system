@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
-import ResponsiveTable from "@/components/tables/ResponsiveTable";
-import Modal from "@/components/ui/Modal";
-import ProductForm from "@/components/forms/ProductForm";
-import { API_BASE_URL, createProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
-import { ImageIcon, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import DashboardLayout from "@/src/components/layout/DashboardLayout";
+import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
+import Modal from "@/src/components/ui/Modal";
+import ProductForm from "@/src/components/forms/ProductForm";
+import { API_BASE_URL, createProduct, updateProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
+import { ImageIcon, Plus, RefreshCw, Search, Trash2, Edit2 } from "lucide-react";
+import { useToast } from "@/src/context/ToastContext";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
+import Pagination from "@/src/components/ui/Pagination";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -13,21 +16,32 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
+
+  const { page, limit, setPage, setLimit } = useUrlPagination(20);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
 
   const loadData = async () => {
     setIsLoading(true);
     setError("");
     try {
       const [productResponse, categoryResponse] = await Promise.all([
-        getProducts({ search, category }),
+        getProducts({ search, category, page, limit }),
         getCategories(),
       ]);
-      setProducts(productResponse.data);
-      setCategories(categoryResponse.data);
+      setProducts(productResponse.data || []);
+      setTotalItems(productResponse.pagination?.total || productResponse.data?.length || 0);
+      setCategories(categoryResponse.data || []);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load products");
     } finally {
@@ -40,17 +54,38 @@ export default function ProductsPage() {
       startTransition(() => { void loadData(); });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search, category]);
+  }, [search, category, page, limit]);
 
   const handleCreate = async (payload: ProductPayload) => {
     setIsSubmitting(true);
     setError("");
     try {
       await createProduct(payload);
-      setIsModalOpen(false);
+      handleCloseModal();
+      showToast("Product created successfully", "success");
       await loadData();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to create product");
+      const msg = requestError instanceof Error ? requestError.message : "Unable to create product";
+      setError(msg);
+      showToast(msg, "fail");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdate = async (payload: ProductPayload) => {
+    if (!editingProduct) return;
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await updateProduct(editingProduct.id, payload);
+      handleCloseModal();
+      showToast("Product updated successfully", "success");
+      await loadData();
+    } catch (requestError) {
+      const msg = requestError instanceof Error ? requestError.message : "Unable to update product";
+      setError(msg);
+      showToast(msg, "fail");
     } finally {
       setIsSubmitting(false);
     }
@@ -61,8 +96,11 @@ export default function ProductsPage() {
     try {
       await deleteProduct(id);
       setProducts((current) => current.filter((product) => product.id !== id));
+      showToast("Product deleted successfully", "success");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to delete product");
+      const msg = requestError instanceof Error ? requestError.message : "Unable to delete product";
+      setError(msg);
+      showToast(msg, "fail");
     }
   };
 
@@ -162,13 +200,39 @@ export default function ProductsPage() {
             {
               key: "actions",
               label: "",
-              render: (r) => <button onClick={() => void handleDelete(r.id)} className="p-2 text-slate-400 hover:text-rose-600" aria-label={`Delete ${r.name}`}><Trash2 size={17} /></button>,
+              render: (r) => (
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => { setEditingProduct(r); setIsModalOpen(true); }} className="p-2 text-slate-400 hover:text-primary-600" aria-label={`Edit ${r.name}`}>
+                    <Edit2 size={17} />
+                  </button>
+                  <button onClick={() => void handleDelete(r.id)} className="p-2 text-slate-400 hover:text-rose-600" aria-label={`Delete ${r.name}`}>
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+              ),
             },
           ]}
         />}
+
+        {products.length > 0 && (
+          <Pagination
+            page={page}
+            limit={limit}
+            totalItems={totalItems}
+            totalPages={Math.ceil(totalItems / limit)}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
+          />
+        )}
       </div>
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Product">
-        <ProductForm categories={categories} onSubmit={handleCreate} onCancel={() => setIsModalOpen(false)} isSubmitting={isSubmitting} />
+      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingProduct ? "Edit Product" : "Add Product"}>
+        <ProductForm 
+          categories={categories} 
+          onSubmit={editingProduct ? handleUpdate : handleCreate} 
+          onCancel={handleCloseModal} 
+          isSubmitting={isSubmitting}
+          initialProduct={editingProduct} 
+        />
       </Modal>
     </DashboardLayout>
   );

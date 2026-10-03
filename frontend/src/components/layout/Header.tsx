@@ -47,9 +47,10 @@
 
 
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
+import apiClient from "@/src/lib/apiClient";
 import {
   Bell,
   User,
@@ -67,6 +68,7 @@ import {
 import { notifications as mockNotifications, timeAgo } from "@/src/lib/mockData";
 import type { AppNotification, NotificationType } from "@/src/lib/mockData";
 import { notificationsApi } from "@/src/lib/api";
+import { useToast } from "@/src/context/ToastContext";
 
 const bellIcons: Record<NotificationType, { icon: any; color: string }> = {
   low_stock: { icon: AlertTriangle, color: "text-amber-600" },
@@ -81,9 +83,21 @@ export default function Header() {
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [notifsLoaded, setNotifsLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<{ role?: string; full_name?: string } | null>(null);
   const router = useRouter();
+  
+  const notifRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {}
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +114,19 @@ export default function Header() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setNotifOpen(false);
+      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const unreadCount = notifs.filter((n) => !n.isRead).length;
@@ -124,6 +151,19 @@ export default function Header() {
     router.push(path);
   };
 
+  const { showToast } = useToast();
+  const handleLogout = async () => {
+    try {
+      await apiClient.post("/auth/logout");
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      localStorage.removeItem("user");
+      showToast("Logged out successfully", "success");
+      go("/login");
+    }
+  };
+
   return (
     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
       <div className="container-responsive py-3 sm:py-4">
@@ -146,7 +186,8 @@ export default function Header() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Notifications bell */}
-            <div className="relative">
+            {user?.role !== "staff" && (
+            <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setNotifOpen(!notifOpen)}
                 className="relative p-2.5 rounded-lg hover:bg-slate-100 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600"
@@ -162,11 +203,6 @@ export default function Header() {
 
               {notifOpen && (
                 <>
-                  {/* Click outside to close */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setNotifOpen(false)}
-                  />
 
                   <div className="absolute right-0 mt-2 w-[19rem] sm:w-96 bg-white rounded-lg shadow-lg border border-slate-200 z-20 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
@@ -242,9 +278,10 @@ export default function Header() {
                 </>
               )}
             </div>
+            )}
 
             {/* User menu */}
-            <div className="relative">
+            <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 min-h-[44px]"
@@ -253,7 +290,7 @@ export default function Header() {
                   <User size={18} className="text-white" />
                 </div>
                 <span className="hidden md:block text-sm font-medium text-slate-700">
-                  Admin
+                  {user ? (user.full_name || user.role) : "User"}
                 </span>
                 <ChevronDown
                   size={14}
@@ -265,49 +302,11 @@ export default function Header() {
 
               {menuOpen && (
                 <>
-                  {/* Click outside to close */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setMenuOpen(false)}
-                  />
 
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
-                    <button
-                      onClick={() => go("/login")}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 min-h-[44px] flex items-center gap-2"
-                    >
-                      <LogIn size={16} />
-                      Login
-                    </button>
-                    <button
-                      onClick={() => go("/signup")}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 min-h-[44px] flex items-center gap-2"
-                    >
-                      <UserPlus size={16} />
-                      Sign Up
-                    </button>
-
-                    <hr className="my-1 border-slate-100" />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20">
 
                     <button
-                      onClick={() => go("/dashboard")}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 min-h-[44px] flex items-center gap-2"
-                    >
-                      <User size={16} />
-                      Profile
-                    </button>
-                    <button
-                      onClick={() => go("/dashboard")}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 min-h-[44px] flex items-center gap-2"
-                    >
-                      <Settings size={16} />
-                      Settings
-                    </button>
-
-                    <hr className="my-1 border-slate-100" />
-
-                    <button
-                      onClick={() => go("/login")}
+                      onClick={handleLogout}
                       className="w-full text-left px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 min-h-[44px] flex items-center gap-2"
                     >
                       <LogOut size={16} />

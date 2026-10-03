@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import StatCard from "@/src/components/dashboard/StatCard";
 import SalesChart from "@/src/components/dashboard/SalesChart";
+import apiClient from "@/src/lib/apiClient";
+import { useToast } from "@/src/context/ToastContext";
+import { useRouter } from "next/router";
 
 import {
   DollarSign,
@@ -38,22 +41,27 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+  const { showToast } = useToast();
+  const router = useRouter();
 
 useEffect(() => {
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:5000/dashboard"
-      );
-
-      const result = await response.json();
+      const response = await apiClient.get('/dashboard');
+      const result = response.data;
 
       if (result.success) {
         setDashboardData(result.data);
       }
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-      setError("Failed to load dashboard data.");
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        showToast("Access denied: Admins only", "fail");
+        router.push("/login");
+      } else {
+        console.error("Error fetching dashboard data:", error);
+        setError("Failed to load dashboard data.");
+        showToast("Failed to load dashboard data", "fail");
+      }
     } finally {
       setLoading(false);
     }

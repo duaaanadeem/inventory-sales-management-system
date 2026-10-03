@@ -1,5 +1,6 @@
 const salesService = require('./sales.service');
 const { sendSuccess, sendError } = require('../../utils/response');
+const { parsePagination } = require('../../utils/helpers');
 
 const searchProducts = async (req, res) => {
     try {
@@ -32,8 +33,9 @@ const createSale = async (req, res) => {
 
 const listSales = async (req, res) => {
     try {
-        const sales = await salesService.listSales();
-        return sendSuccess(res, sales);
+        const { page, limit } = parsePagination(req.query);
+        const { sales, pagination } = await salesService.listSales({ page, limit });
+        res.json({ success: true, data: sales, pagination });
     } catch (error) {
         console.error('listSales error:', error);
         return sendError(res, 'Internal Server Error', 500);

@@ -1,5 +1,6 @@
 const inventoryService = require('./inventory.service');
 const { sendSuccess, sendError } = require('../../utils/response');
+const { parsePagination } = require('../../utils/helpers');
 
 const stockInManual = async (req, res) => {
     try {
@@ -133,6 +134,17 @@ const getLowStock = async (req, res) => {
     }
 };
 
+const getAllInventory = async (req, res) => {
+    try {
+        const { search, viewFilter } = req.query;
+        const { page, limit } = parsePagination(req.query);
+        const result = await inventoryService.getAllInventory({ search, viewFilter, page, limit });
+        return sendSuccess(res, result);
+    } catch (error) {
+        return sendError(res, 'Internal Server Error', 500);
+    }
+};
+
 module.exports = {
     stockInManual,
     deductStock,
@@ -142,5 +154,6 @@ module.exports = {
     getCurrentStock,
     getSummary,
     getReport,
-    getLowStock
+    getLowStock,
+    getAllInventory
 };

@@ -16,15 +16,9 @@ const writeLimiter = rateLimit({
     message: { success: false, error: 'Too many requests' }
 });
 
-// TODO: replace with real auth middleware once Shahid's auth is merged
-const requireAuth = (req, res, next) => {
-    if (!req.user) {
-        req.user = { id: 1 };
-    }
-    next();
-};
+const { verifyToken, requireRole } = require("../../middleware/auth");
 
-router.use(requireAuth);
+router.use(verifyToken, requireRole(['admin', 'staff']));
 
 router.post('/stock-in', writeLimiter, validateStockChange(false), inventoryController.stockInManual);
 router.post('/deduct', writeLimiter, validateStockChange(false), inventoryController.deductStock);
@@ -36,5 +30,6 @@ router.get('/current/:productId', inventoryController.getCurrentStock);
 router.get('/summary', inventoryController.getSummary);
 router.get('/report', inventoryController.getReport);
 router.get('/low-stock', inventoryController.getLowStock);
+router.get('/', inventoryController.getAllInventory);
 
 module.exports = router;
