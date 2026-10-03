@@ -10,12 +10,13 @@ const {
   deleteProduct,
 } = require("./product.controller");
 
-router.get("/", getProducts);
-router.get("/:id", getProduct);
+const { verifyToken, requireRole } = require("../../middleware/auth");
 
-// TODO: add verifyToken + requireRole("admin") when Auth is merged
-router.post("/", upload.single("image"), validateCreateProduct, createProduct);
-router.put("/:id", upload.single("image"), validateUpdateProduct, updateProduct);
-router.delete("/:id", deleteProduct);
+router.get("/", verifyToken, requireRole(['admin', 'staff']), getProducts);
+router.get("/:id", verifyToken, requireRole(['admin', 'staff']), getProduct);
+
+router.post("/", verifyToken, requireRole(['admin']), upload.single("image"), validateCreateProduct, createProduct);
+router.put("/:id", verifyToken, requireRole(['admin']), upload.single("image"), validateUpdateProduct, updateProduct);
+router.delete("/:id", verifyToken, requireRole(['admin']), deleteProduct);
 
 module.exports = router;

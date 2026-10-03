@@ -3,6 +3,8 @@ import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import Modal from "@/src/components/ui/Modal";
 import { Search, Plus, Loader2 } from "lucide-react";
+import apiClient from "@/src/lib/apiClient";
+import { useToast } from "@/src/context/ToastContext";
 
 export default function SuppliersPage() {
   const [search, setSearch] = useState("");
@@ -12,6 +14,8 @@ export default function SuppliersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const { showToast } = useToast();
 
   // History State
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -30,16 +34,15 @@ export default function SuppliersPage() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5000/api/suppliers", { credentials: "include" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
+      const res = await apiClient.get("/suppliers");
+      const data = res.data;
       if (data.success) {
         setSuppliers(data.data);
       } else {
         setError(data.message || "Failed to fetch suppliers");
       }
-    } catch (err) {
-      setError("Unable to connect to the server.");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Unable to connect to the server.");
     } finally {
       setIsLoading(false);
     }
@@ -54,14 +57,8 @@ export default function SuppliersPage() {
     setIsSubmitting(true);
     setError("");
     try {
-      const res = await fetch("http://localhost:5000/api/suppliers", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, company, phone, email, address }),
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
+      const res = await apiClient.post("/suppliers", { name, company, phone, email, address });
+      const data = res.data;
       if (data.success) {
         setAddOpen(false);
         setName("");
@@ -69,12 +66,16 @@ export default function SuppliersPage() {
         setPhone("");
         setEmail("");
         setAddress("");
+        showToast("Supplier added successfully", "success");
         fetchSuppliers();
       } else {
         setError(data.message || "Failed to add supplier");
+        showToast(data.message || "Failed to add supplier", "fail");
       }
-    } catch (err) {
-      setError("Unable to connect to the server.");
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Unable to connect to the server.";
+      setError(msg);
+      showToast(msg, "fail");
     } finally {
       setIsSubmitting(false);
     }
@@ -86,14 +87,14 @@ export default function SuppliersPage() {
     setIsLoadingHistory(true);
     setSupplierHistory(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/suppliers/${supplier.id}/summary`, { credentials: "include" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
+      const res = await apiClient.get(`/suppliers/${supplier.id}/summary`);
+      const data = res.data;
       if (data.success) {
         setSupplierHistory(data.data);
       }
     } catch (err) {
       console.error(err);
+      showToast("Failed to load supplier history", "fail");
     } finally {
       setIsLoadingHistory(false);
     }

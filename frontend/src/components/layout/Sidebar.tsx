@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -29,9 +29,57 @@ const navItems = [
   { href: "/activities", label: "Activity Log", icon: History },
 ];
 
+let isHydrated = false;
+
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [userRole, setUserRole] = useState(() => {
+    if (typeof window !== "undefined" && isHydrated) {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          return JSON.parse(storedUser).role;
+        } catch (e) {}
+      }
+    }
+    return "admin"; // Default doesn't matter much on first load because we hide nav until mounted
+  });
+  const [mounted, setMounted] = useState(() => {
+    if (typeof window !== "undefined") {
+      return isHydrated;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (!isHydrated) {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          setUserRole(user.role);
+        } catch (e) {}
+      }
+      setMounted(true);
+      isHydrated = true;
+    }
+  }, []);
   const pathname = usePathname();
+
+  const allowedStaffPages = [
+    "/dashboard",
+    "/products",
+    "/pos",
+    "/inventory",
+    "/purchases",
+    "/suppliers",
+    "/reports"
+  ];
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (userRole === "admin") return true;
+    return allowedStaffPages.includes(item.href);
+  });
 
   return (
     <>
@@ -51,6 +99,7 @@ export default function Sidebar() {
       )}
 
       <aside
+        suppressHydrationWarning
         className={`
     fixed lg:sticky top-0 left-0 h-screen w-64
     bg-slate-900 text-slate-100 z-40
@@ -78,7 +127,7 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="p-3 sm:p-4 space-y-1 overflow-y-auto h-[calc(100%-88px)]">
-          {navItems.map((item) => {
+          {mounted && filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (

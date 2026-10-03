@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import { Boxes, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
+import apiClient from "@/src/lib/apiClient";
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"admin" | "staff">("admin");
@@ -12,31 +14,27 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // Essential for storing cookies
-        body: JSON.stringify({ email, password })
-      });
-
-      const data = await res.json();
+      const res = await apiClient.post("/auth/login", { email, password });
+      const data = res.data;
       
       if (data.success) {
+        if (data.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
         // Redirect to dashboard (or wherever)
         router.push("/dashboard");
       } else {
         setError(data.message || "Failed to log in.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Unable to connect to the server. Is the backend running?");
+      setError(err.response?.data?.message || err.response?.data?.error || "Unable to connect to the server. Is the backend running?");
     } finally {
       setIsLoading(false);
     }

@@ -12,26 +12,40 @@ interface ApiResponse<T> {
   };
 }
 
+import apiClient from "@/src/lib/apiClient";
+
 async function request<T>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: "include",
-    ...options,
-  });
-
-  if (response.status === 401) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
+  try {
+    // If path starts with /api, strip it since apiClient uses /api baseURL
+    const url = path.replace(/^\/api/, "");
+    
+    // Parse stringified JSON bodies for Axios
+    let data = options?.body as any;
+    if (typeof data === 'string' && options?.headers && (options.headers as any)['Content-Type'] === 'application/json') {
+      try { data = JSON.parse(data); } catch (e) {}
     }
-    throw new Error("Unauthenticated");
+
+    const response = await apiClient({
+      url,
+      method: options?.method || "GET",
+      data,
+      headers: options?.headers as any,
+    });
+    return response.data as ApiResponse<T>;
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      throw new Error("Access denied: You do not have permission");
+    }
+    
+    // apiClient already handles 401 and refresh token logic
+    if (error.response?.data) {
+      throw new Error(error.response.data.error || error.response.data.message || "Request failed");
+    }
+    throw new Error(error.message || "Request failed");
   }
-
-  const body = (await response.json()) as ApiResponse<T>;
-
-  if (!response.ok || !body.success) {
-    throw new Error(body.error || body.message || "Request failed");
-  }
-
-  return body;
 }
 
 export interface Category {

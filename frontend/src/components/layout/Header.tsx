@@ -50,6 +50,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import apiClient from "@/src/lib/apiClient";
 import {
   Bell,
   User,
@@ -81,9 +82,18 @@ export default function Header() {
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [notifsLoaded, setNotifsLoaded] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<{ role?: string; full_name?: string } | null>(null);
   const router = useRouter();
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {}
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,13 +136,11 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await apiClient.post("/auth/logout");
     } catch (err) {
       console.error("Logout failed", err);
     } finally {
+      localStorage.removeItem("user");
       go("/login");
     }
   };
@@ -266,7 +274,7 @@ export default function Header() {
                   <User size={18} className="text-white" />
                 </div>
                 <span className="hidden md:block text-sm font-medium text-slate-700">
-                  Admin
+                  {user ? (user.full_name || user.role) : "User"}
                 </span>
                 <ChevronDown
                   size={14}

@@ -2,6 +2,7 @@ import AuthLayout from "@/src/components/layout/AuthLayout";
 import Link from "next/link";
 import { useState } from "react";
 import { Boxes, Mail, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import apiClient from "@/src/lib/apiClient";
 
 export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
@@ -15,22 +16,17 @@ export default function ForgotPasswordPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-      });
-
-      const data = await res.json();
+      const res = await apiClient.post("/auth/forgot-password", { email });
+      const data = res.data;
       
       if (data.success) {
         setSent(true);
       } else {
         setError(data.message || "Failed to send reset link.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Unable to connect to the server.");
+      setError(err.response?.data?.message || err.response?.data?.error || "Unable to connect to the server.");
     } finally {
       setIsLoading(false);
     }

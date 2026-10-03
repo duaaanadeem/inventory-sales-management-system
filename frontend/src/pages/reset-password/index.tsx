@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Boxes, Lock, Eye, EyeOff, CheckCircle, Loader2 } from "lucide-react";
+import apiClient from "@/src/lib/apiClient";
 
 export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -40,22 +41,17 @@ export default function ResetPasswordPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token, newPassword: password })
-      });
-
-      const data = await res.json();
+      const res = await apiClient.post("/auth/reset-password", { email, token, newPassword: password });
+      const data = res.data;
       
       if (data.success) {
         setDone(true);
       } else {
         setError(data.message || "Failed to reset password.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Unable to connect to the server.");
+      setError(err.response?.data?.message || err.response?.data?.error || "Unable to connect to the server.");
     } finally {
       setIsLoading(false);
     }

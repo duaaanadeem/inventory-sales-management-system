@@ -2,8 +2,9 @@ const express = require("express");
 const router = express.Router();
 const { getCategories, addCategory } = require("./category.controller");
 
-// TODO: add verifyToken + requireRole("admin") on POST once Auth module is merged.
-router.get("/", getCategories);
-router.post("/", addCategory);
+const { verifyToken, requireRole } = require("../../middleware/auth");
+
+router.get("/", verifyToken, requireRole(['admin', 'staff']), getCategories);
+router.post("/", verifyToken, requireRole(['admin']), addCategory);
 
 module.exports = router;

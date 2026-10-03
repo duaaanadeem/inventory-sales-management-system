@@ -126,7 +126,7 @@ export default function POSPage() {
   const loadCustomers = async (q = "") => {
     setIsLoadingCustomers(true);
     try {
-      const { data } = await apiClient.get(`${CUST_URL}?search=${encodeURIComponent(q)}&limit=50`);
+      const { data } = await apiClient.get(`/customers?search=${encodeURIComponent(q)}&limit=50`);
       if (data.success) setCustomers(data.data?.customers ?? []);
     } catch { /* silent */ } finally {
       setIsLoadingCustomers(false);

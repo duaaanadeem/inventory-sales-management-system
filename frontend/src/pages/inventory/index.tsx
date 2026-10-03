@@ -11,6 +11,8 @@ import {
   Package,
   Loader2
 } from "lucide-react";
+import apiClient from "@/src/lib/apiClient";
+import { useToast } from "@/src/context/ToastContext";
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
@@ -22,6 +24,8 @@ export default function InventoryPage() {
   const [summary, setSummary] = useState({ total_products: 0, total_stock_items: 0, low_stock_count: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const { showToast } = useToast();
 
   // Modal form state
   const [productId, setProductId] = useState("");
@@ -35,19 +39,12 @@ export default function InventoryPage() {
     setError(null);
     try {
       const [invRes, sumRes] = await Promise.all([
-        fetch("http://localhost:5000/inventory"),
-        fetch("http://localhost:5000/inventory/summary")
+        apiClient.get("/inventory"),
+        apiClient.get("/inventory/summary")
       ]);
       
-      if (!invRes.ok || !sumRes.ok) {
-        throw new Error("Server returned an error");
-      }
-      
-      const invData = await invRes.json();
-      const sumData = await sumRes.json();
-
-      if (invData.success) setInventory(invData.data.inventory || []);
-      if (sumData.success) setSummary(sumData.data || { total_products: 0, total_stock_items: 0, low_stock_count: 0 });
+      setInventory(invRes.data.data.inventory || []);
+      setSummary(sumRes.data.data || { total_products: 0, total_stock_items: 0, low_stock_count: 0 });
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
       setError("Unable to connect to the backend server. Please make sure it is running.");
@@ -72,29 +69,21 @@ export default function InventoryPage() {
     else if (adjustmentType === "adjustment") endpoint = "/inventory/adjust";
 
     try {
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_id: parseInt(productId),
-          qty: parseInt(quantity.toString()),
-          reference_id: referenceId || `${adjustmentType}_${Date.now()}`
-        })
+      const res = await apiClient.post(endpoint, {
+        product_id: parseInt(productId),
+        qty: parseInt(quantity.toString()),
+        reference_id: referenceId || `${adjustmentType}_${Date.now()}`
       });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
-      if (data.success) {
-        setAdjustOpen(false);
-        setProductId("");
-        setQuantity(1);
-        setReferenceId("");
-        fetchData(); // re-fetch data instantly
-      } else {
-        alert(data.message || data.error || "Failed to adjust stock");
-      }
-    } catch (error) {
-      alert("Error adjusting stock");
+
+      setAdjustOpen(false);
+      setProductId("");
+      setQuantity(1);
+      setReferenceId("");
+      showToast("Stock adjusted successfully", "success");
+      fetchData(); // re-fetch data instantly
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.response?.data?.message || "Failed to adjust stock";
+      showToast(msg, "fail");
     } finally {
       setIsSubmitting(false);
     }

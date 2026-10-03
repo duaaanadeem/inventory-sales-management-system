@@ -3,6 +3,8 @@ import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import Modal from "@/src/components/ui/Modal";
 import { Search, Plus, Loader2, CheckCircle } from "lucide-react";
+import apiClient from "@/src/lib/apiClient";
+import { useToast } from "@/src/context/ToastContext";
 
 export default function PurchasesPage() {
   const [search, setSearch] = useState("");
@@ -15,6 +17,8 @@ export default function PurchasesPage() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  const { showToast } = useToast();
   
   // New PO Form State
   const [supplierId, setSupplierId] = useState("");
@@ -36,16 +40,14 @@ export default function PurchasesPage() {
     setError("");
     try {
       const [purchasesRes, suppliersRes, productsRes] = await Promise.all([
-        fetch("http://localhost:5000/api/purchases"),
-        fetch("http://localhost:5000/api/suppliers"),
-        fetch("http://localhost:5000/api/products")
+        apiClient.get("/purchases"),
+        apiClient.get("/suppliers"),
+        apiClient.get("/products")
       ]);
 
-      const [purchasesData, suppliersData, productsData] = await Promise.all([
-        purchasesRes.json(),
-        suppliersRes.json(),
-        productsRes.json()
-      ]);
+      const purchasesData = purchasesRes.data;
+      const suppliersData = suppliersRes.data;
+      const productsData = productsRes.data;
 
       if (purchasesData.success) setPurchases(purchasesData.data);
       if (suppliersData.success) {
@@ -85,26 +87,24 @@ export default function PurchasesPage() {
         ]
       };
 
-      const res = await fetch("http://localhost:5000/api/purchases", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
+      const res = await apiClient.post("/purchases", payload);
+      const data = res.data;
       
       if (data.success) {
         setNewOpen(false);
         setQuantity(1);
         setCost(0);
         setPurchaseDate("");
+        showToast("Purchase order created", "success");
         fetchData();
       } else {
         setError(data.message || "Failed to create PO");
+        showToast(data.message || "Failed to create PO", "fail");
       }
-    } catch (err) {
-      setError("Unable to connect to the server.");
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || "Unable to connect to the server.";
+      setError(msg);
+      showToast(msg, "fail");
     } finally {
       setIsSubmitting(false);
     }
@@ -117,9 +117,8 @@ export default function PurchasesPage() {
     setError("");
 
     try {
-      const res = await fetch(`http://localhost:5000/api/purchases/${id}/items`, { credentials: "include" });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
+      const res = await apiClient.get(`/purchases/${id}/items`);
+      const data = res.data;
       if (data.success) {
         setDamageItems(
           data.data.map((item: any) => ({
@@ -131,8 +130,8 @@ export default function PurchasesPage() {
         setError(data.message || "Failed to fetch purchase items");
         setDamageModalOpen(false);
       }
-    } catch (err) {
-      setError("Unable to connect to the server.");
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Unable to connect to the server.");
       setDamageModalOpen(false);
     } finally {
       setIsFetchingItems(false);
@@ -159,23 +158,21 @@ export default function PurchasesPage() {
         .filter(i => i.damaged_qty > 0)
         .map(i => ({ product_id: i.product_id, damaged_qty: i.damaged_qty }));
 
-      const res = await fetch(`http://localhost:5000/api/purchases/${damageTargetId}/complete`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ damaged_items })
-      });
-      if (res.status === 401) { window.location.href = "/login"; return; }
-      const data = await res.json();
+      const res = await apiClient.put(`/purchases/${damageTargetId}/complete`, { damaged_items });
+      const data = res.data;
       
       if (data.success) {
         setDamageModalOpen(false);
+        showToast("Purchase order marked as complete", "success");
         fetchData(); // Refresh list
       } else {
         setError(data.message || "Failed to complete purchase");
+        showToast(data.message || "Failed to complete purchase", "fail");
       }
-    } catch (err) {
-      setError("Unable to connect to the server.");
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Unable to connect to the server.";
+      setError(msg);
+      showToast(msg, "fail");
     } finally {
       setCompletingId(null);
     }

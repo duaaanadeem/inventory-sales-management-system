@@ -20,19 +20,19 @@ app.use(cookieParser());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const customerRoutes = require("./src/customers/customer.routes");
-app.use("/customers", customerRoutes);
+app.use("/api/customers", customerRoutes);
 
 const inventoryRoutes = require("./src/features/inventory/inventory.routes");
-app.use("/inventory", inventoryRoutes);
+app.use("/api/inventory", inventoryRoutes);
 
 const dashboardRoutes = require("./src/features/dashboard/dashboard.routes");
-app.use("/dashboard", dashboardRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 const notificationRoutes = require("./src/features/notifications/notification.routes");
-app.use("/notifications", notificationRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 const activityRoutes = require("./src/features/activities/activity.routes");
-app.use("/activities", activityRoutes);
+app.use("/api/activities", activityRoutes);
 
 const productRoutes = require("./src/features/products/product.routes");
 app.use("/api/products", productRoutes);
@@ -51,7 +51,7 @@ const purchaseRoutes = require("./src/features/purchases/purchase.routes");
 app.use("/api/purchases", purchaseRoutes);
 
 const authRoutes = require("./src/features/auth/auth.routes");
-app.use("/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.json({

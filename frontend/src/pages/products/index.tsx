@@ -6,6 +6,7 @@ import Modal from "@/src/components/ui/Modal";
 import ProductForm from "@/src/components/forms/ProductForm";
 import { API_BASE_URL, createProduct, updateProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
 import { ImageIcon, Plus, RefreshCw, Search, Trash2, Edit2 } from "lucide-react";
+import { useToast } from "@/src/context/ToastContext";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -18,6 +19,7 @@ export default function ProductsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const { showToast } = useToast();
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -54,9 +56,12 @@ export default function ProductsPage() {
     try {
       await createProduct(payload);
       handleCloseModal();
+      showToast("Product created successfully", "success");
       await loadData();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to create product");
+      const msg = requestError instanceof Error ? requestError.message : "Unable to create product";
+      setError(msg);
+      showToast(msg, "fail");
     } finally {
       setIsSubmitting(false);
     }
@@ -69,9 +74,12 @@ export default function ProductsPage() {
     try {
       await updateProduct(editingProduct.id, payload);
       handleCloseModal();
+      showToast("Product updated successfully", "success");
       await loadData();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to update product");
+      const msg = requestError instanceof Error ? requestError.message : "Unable to update product";
+      setError(msg);
+      showToast(msg, "fail");
     } finally {
       setIsSubmitting(false);
     }
@@ -82,8 +90,11 @@ export default function ProductsPage() {
     try {
       await deleteProduct(id);
       setProducts((current) => current.filter((product) => product.id !== id));
+      showToast("Product deleted successfully", "success");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to delete product");
+      const msg = requestError instanceof Error ? requestError.message : "Unable to delete product";
+      setError(msg);
+      showToast(msg, "fail");
     }
   };
 

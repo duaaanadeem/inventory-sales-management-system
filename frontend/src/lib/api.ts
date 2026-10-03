@@ -3,18 +3,30 @@ import type { AppNotification, ActivityEntry, EntityType } from "./mockData";
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+import apiClient from "@/src/lib/apiClient";
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const message =
-      typeof body.error === "string" ? body.error : "Request failed";
-    throw new Error(message);
+  try {
+    // If path doesn't start with /api, we might need to prepend it, but apiClient uses baseURL=/api
+    // Let's strip /api prefix from path if it exists to avoid double /api/api
+    const url = path.replace(/^\/api/, "");
+    
+    const response = await apiClient({
+      url,
+      method: options.method || "GET",
+      data: options.body ? (typeof options.body === "string" ? JSON.parse(options.body) : options.body) : undefined,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      } as any,
+    });
+    return response.data.data as T;
+  } catch (error: any) {
+    if (error.response?.data) {
+      throw new Error(error.response.data.error || error.response.data.message || "Request failed");
+    }
+    throw new Error(error.message || "Request failed");
   }
-  return body.data as T;
 }
 
 // Adapters: backend snake_case -> frontend camelCase shapes

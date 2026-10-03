@@ -30,12 +30,13 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Only intercept 401 Unauthorized errors (excluding the refresh endpoint itself to prevent infinite loops)
+    // Only intercept 401 Unauthorized errors (excluding the refresh and login endpoints)
     if (
       error.response &&
       error.response.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/refresh')
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/auth/login')
     ) {
       if (isRefreshing) {
         // If already refreshing, put this request in a queue to retry once refresh completes
@@ -56,7 +57,7 @@ apiClient.interceptors.response.use(
       try {
         // Hit the refresh endpoint (which requires the refresh token cookie)
         // Note: the backend route is just /auth/refresh (if base URL is /api, then /api/auth/refresh)
-        await axios.post(`${API_URL.replace('/api', '')}/auth/refresh`, {}, { withCredentials: true });
+        await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
         
         // Refresh was successful, process the queued requests
         isRefreshing = false;
@@ -75,6 +76,12 @@ apiClient.interceptors.response.use(
         }
         
         return Promise.reject(refreshError);
+      }
+    }
+
+    if (error.response && error.response.status === 403) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard';
       }
     }
 

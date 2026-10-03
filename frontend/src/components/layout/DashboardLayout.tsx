@@ -1,11 +1,43 @@
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+
+const allowedStaffPages = [
+  "/dashboard",
+  "/products",
+  "/pos",
+  "/inventory",
+  "/purchases",
+  "/suppliers",
+  "/reports"
+];
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("user");
+      let role = "admin";
+      if (storedUser) {
+        try {
+          role = JSON.parse(storedUser).role;
+        } catch (e) {}
+      }
+      if (role === "staff") {
+        const isAllowed = allowedStaffPages.some(page => pathname === page || pathname.startsWith(page + "/"));
+        if (!isAllowed) {
+          router.push("/dashboard");
+        }
+      }
+    }
+  }, [pathname, router]);
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
