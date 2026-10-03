@@ -1,56 +1,104 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DashboardLayout from "@/src/components/layout/DashboardLayout";
 import ResponsiveTable from "@/src/components/tables/ResponsiveTable";
 import Modal from "@/src/components/ui/Modal";
-import { Search, Plus, Mail, Phone, MapPin } from "lucide-react";
+import { customersApi } from "@/src/lib/api";
+import type { Customer, CustomerPurchase } from "@/src/lib/api";
+import { Search, Plus, Loader2 } from "lucide-react";
 
-const customers = [
-  { id: 1, name: "John Doe", phone: "555-0101", email: "john@example.com", address: "123 Main St", purchases: 12, total: 1250.5 },
-  { id: 2, name: "Jane Smith", phone: "555-0102", email: "jane@example.com", address: "456 Oak Ave", purchases: 8, total: 890.0 },
-  { id: 3, name: "Bob Johnson", phone: "555-0103", email: "bob@example.com", address: "789 Pine Rd", purchases: 5, total: 450.25 },
-  { id: 4, name: "Alice Williams", phone: "555-0104", email: "alice@example.com", address: "321 Elm Blvd", purchases: 15, total: 2100.0 },
-];
+const toCurrency = (v: string | number) =>
+  `$${Number(v || 0).toFixed(2)}`;
+
+const EMPTY_FORM = { name: "", phone: "", email: "", address: "" };
 
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
-  const [selected, setSelected] = useState<typeof customers[0] | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [customers, setCustomers] = useState<Customer[] | null>(null);
+  const [loadError, setLoadError] = useState("");
 
-  const filtered = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search)
-  );
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const [selected, setSelected] = useState<Customer | null>(null);
+  const [purchases, setPurchases] = useState<CustomerPurchase[] | null>(null);
+
+  // Debounce the search box so we don't hit the API on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  async function loadCustomers() {
+    try {
+      const res = await customersApi.list({ search: debouncedSearch, limit: 50 });
+      setCustomers(res.customers);
+      setLoadError("");
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Could not load customers.");
+    }
+  }
+
+  useEffect(() => {
+    loadCustomers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  async function openPurchases(customer: Customer) {
+    setSelected(customer);
+    setPurchases(null);
+    try {
+      const res = await customersApi.purchases(customer.id, { limit: 5 });
+      setPurchases(res.purchases);
+    } catch {
+      setPurchases([]); // purchase history is admin-only - a 403 here just shows "no purchases"
+    }
+  }
+
+  async function submitAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setFormErrors({});
+    if (!form.name.trim()) {
+      setFormErrors({ name: "Name is required." });
+      return;
+    }
+    setSaving(true);
+    try {
+      await customersApi.create(form);
+      setAddOpen(false);
+      setForm(EMPTY_FORM);
+      await loadCustomers();
+    } catch (err: any) {
+      if (err?.details && typeof err.details === "object") setFormErrors(err.details);
+      else setFormErrors({ _form: err instanceof Error ? err.message : "Could not add customer." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const list = customers ?? [];
 
   return (
     <DashboardLayout>
       <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-              Customers
-            </h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Customers</h1>
             <p className="text-sm text-slate-500 mt-1">
               Manage customers and view purchase history
             </p>
           </div>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="btn-primary w-full sm:w-auto"
-          >
+          <button onClick={() => setAddOpen(true)} className="btn-primary w-full sm:w-auto">
             <Plus size={18} />
             Add Customer
           </button>
         </div>
 
-        {/* Search */}
         <div className="card">
           <div className="relative">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
               placeholder="Search by name, email or phone..."
@@ -61,75 +109,101 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <ResponsiveTable
-          data={filtered}
-          keyField="id"
-          columns={[
-            { key: "name", label: "Name" },
-            { key: "phone", label: "Phone" },
-            { key: "email", label: "Email", hideOnMobile: true },
-            { key: "address", label: "Address", hideOnMobile: true },
-            {
-              key: "purchases",
-              label: "Orders",
-              render: (r) => (
-                <button
-                  onClick={() => setSelected(r)}
-                  className="text-primary-600 hover:underline font-medium"
-                >
-                  {r.purchases}
-                </button>
-              ),
-            },
-            {
-              key: "total",
-              label: "Total Spent",
-              render: (r) => (
-                <span className="font-semibold">${r.total.toFixed(2)}</span>
-              ),
-            },
-          ]}
-        />
+        {loadError && (
+          <div className="card bg-red-50 text-red-700 text-sm flex items-center justify-between">
+            <span>{loadError}</span>
+            <button onClick={loadCustomers} className="underline font-medium">
+              Try again
+            </button>
+          </div>
+        )}
+
+        {customers === null && !loadError ? (
+          <div className="card flex flex-col items-center justify-center py-16 text-center">
+            <Loader2 className="animate-spin text-primary-500" size={28} />
+            <p className="text-sm text-slate-500 mt-3">Loading customers...</p>
+          </div>
+        ) : (
+          <ResponsiveTable
+            data={list}
+            keyField="id"
+            columns={[
+              { key: "name", label: "Name" },
+              { key: "phone", label: "Phone", render: (r) => r.phone || "-" },
+              { key: "email", label: "Email", hideOnMobile: true, render: (r) => r.email || "-" },
+              { key: "address", label: "Address", hideOnMobile: true, render: (r) => r.address || "-" },
+              {
+                key: "orders",
+                label: "Orders",
+                render: (r) => (
+                  <button
+                    onClick={() => openPurchases(r)}
+                    className="text-primary-600 hover:underline font-medium"
+                  >
+                    View
+                  </button>
+                ),
+              },
+              {
+                key: "total_spending",
+                label: "Total Spent",
+                render: (r) => <span className="font-semibold">{toCurrency(r.total_spending)}</span>,
+              },
+            ]}
+          />
+        )}
       </div>
 
       {/* Add Customer Modal */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Customer">
-        <form className="space-y-4">
+        <form className="space-y-4" onSubmit={submitAdd}>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Full Name
-            </label>
-            <input className="input" placeholder="John Doe" />
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+            <input
+              className="input"
+              placeholder="John Doe"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            {formErrors.name && <p className="text-sm text-red-600 mt-1">{formErrors.name}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Phone
-            </label>
-            <input className="input" placeholder="555-0101" />
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
+            <input
+              className="input"
+              placeholder="555-0101"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            {formErrors.phone && <p className="text-sm text-red-600 mt-1">{formErrors.phone}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Email
-            </label>
-            <input type="email" className="input" placeholder="john@example.com" />
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+            <input
+              type="email"
+              className="input"
+              placeholder="john@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            {formErrors.email && <p className="text-sm text-red-600 mt-1">{formErrors.email}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Address
-            </label>
-            <textarea className="input" rows={2} />
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Address</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
           </div>
+          {formErrors._form && <p className="text-sm text-red-600">{formErrors._form}</p>}
           <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
-            <button
-              type="button"
-              onClick={() => setAddOpen(false)}
-              className="btn-secondary w-full sm:w-auto"
-            >
+            <button type="button" onClick={() => setAddOpen(false)} className="btn-secondary w-full sm:w-auto">
               Cancel
             </button>
-            <button type="submit" className="btn-primary w-full sm:w-auto">
-              Add Customer
+            <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto disabled:opacity-60">
+              {saving ? "Saving..." : "Add Customer"}
             </button>
           </div>
         </form>
@@ -146,35 +220,41 @@ export default function CustomersPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="card">
                 <p className="text-xs text-slate-500">Email</p>
-                <p className="text-sm font-medium truncate">{selected.email}</p>
+                <p className="text-sm font-medium truncate">{selected.email || "-"}</p>
               </div>
               <div className="card">
                 <p className="text-xs text-slate-500">Phone</p>
-                <p className="text-sm font-medium">{selected.phone}</p>
+                <p className="text-sm font-medium">{selected.phone || "-"}</p>
               </div>
               <div className="card">
                 <p className="text-xs text-slate-500">Total Spent</p>
-                <p className="text-sm font-bold text-primary-600">
-                  ${selected.total.toFixed(2)}
-                </p>
+                <p className="text-sm font-bold text-primary-600">{toCurrency(selected.total_spending)}</p>
               </div>
             </div>
             <div className="card">
               <p className="text-sm font-medium mb-3">Recent Orders</p>
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">Order #10{i}4</p>
-                      <p className="text-xs text-slate-500">2026-09-1{i}</p>
+              {purchases === null ? (
+                <p className="text-sm text-slate-500">Loading...</p>
+              ) : purchases.length === 0 ? (
+                <p className="text-sm text-slate-500">No purchases yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {purchases.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{p.invoice_number || `Sale #${p.id}`}</p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(p.created_at).toLocaleDateString()} - {p.status}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold">{toCurrency(p.total)}</p>
                     </div>
-                    <p className="text-sm font-semibold">${(45 * i).toFixed(2)}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
