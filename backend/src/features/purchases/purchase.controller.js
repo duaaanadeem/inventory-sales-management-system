@@ -1,9 +1,12 @@
 const purchaseService = require("./purchase.service");
+const { parsePagination } = require("../../utils/helpers");
 
 async function getAllPurchases(req, res, next) {
   try {
-    const purchases = await purchaseService.getAllPurchases();
-    res.json({ success: true, data: purchases });
+    const { search, status } = req.query;
+    const { page, limit } = parsePagination(req.query);
+    const { purchases, pagination } = await purchaseService.getAllPurchases({ search, status, page, limit });
+    res.json({ success: true, data: purchases, pagination });
   } catch (error) {
     next(error);
   }

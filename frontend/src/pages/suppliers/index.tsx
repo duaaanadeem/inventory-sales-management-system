@@ -5,6 +5,8 @@ import Modal from "@/src/components/ui/Modal";
 import { Search, Plus, Loader2 } from "lucide-react";
 import apiClient from "@/src/lib/apiClient";
 import { useToast } from "@/src/context/ToastContext";
+import Pagination from "@/src/components/ui/Pagination";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
 
 export default function SuppliersPage() {
   const [search, setSearch] = useState("");
@@ -16,6 +18,8 @@ export default function SuppliersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { showToast } = useToast();
+  const { page, limit, setPage, setLimit } = useUrlPagination(20);
+  const [totalItems, setTotalItems] = useState(0);
 
   // History State
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -34,10 +38,11 @@ export default function SuppliersPage() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await apiClient.get("/suppliers");
+      const res = await apiClient.get(`/suppliers?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`);
       const data = res.data;
       if (data.success) {
-        setSuppliers(data.data);
+        setSuppliers(data.data || []);
+        setTotalItems(data.pagination?.total || data.data?.length || 0);
       } else {
         setError(data.message || "Failed to fetch suppliers");
       }
@@ -49,8 +54,11 @@ export default function SuppliersPage() {
   };
 
   useEffect(() => {
-    fetchSuppliers();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchSuppliers();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search, page, limit]);
 
   const handleAddSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,11 +108,7 @@ export default function SuppliersPage() {
     }
   };
 
-  const filtered = suppliers.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.company.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = suppliers; // the backend already filters based on search term
 
   return (
     <DashboardLayout>
@@ -143,7 +147,7 @@ export default function SuppliersPage() {
               type="search"
               placeholder="Search suppliers..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="input pl-10"
             />
           </div>
@@ -177,6 +181,17 @@ export default function SuppliersPage() {
                 ),
               }
             ]}
+          />
+        )}
+
+        {suppliers.length > 0 && (
+          <Pagination
+            page={page}
+            limit={limit}
+            totalItems={totalItems}
+            totalPages={Math.ceil(totalItems / limit)}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
           />
         )}
       </div>

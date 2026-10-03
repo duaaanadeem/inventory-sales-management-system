@@ -1,8 +1,39 @@
 const pool = require("../../config/pg-db");
 
-async function getAllSuppliers() {
-  const result = await pool.query(`SELECT * FROM suppliers ORDER BY name ASC`);
-  return result.rows;
+async function getAllSuppliers({ search, page = 1, limit = 20 }) {
+  const offset = (page - 1) * limit;
+  let query = `SELECT * FROM suppliers`;
+  const params = [];
+
+  if (search && search.trim()) {
+    query += ` WHERE name ILIKE $1 OR company ILIKE $1`;
+    params.push(`%${search.trim()}%`);
+  }
+
+  query += ` ORDER BY name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  params.push(limit, offset);
+
+  let countQuery = `SELECT COUNT(*)::int AS total FROM suppliers`;
+  const countParams = [];
+  if (search && search.trim()) {
+    countQuery += ` WHERE name ILIKE $1 OR company ILIKE $1`;
+    countParams.push(`%${search.trim()}%`);
+  }
+
+  const [result, countResult] = await Promise.all([
+    pool.query(query, params),
+    pool.query(countQuery, countParams)
+  ]);
+
+  return {
+    suppliers: result.rows,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total: countResult.rows[0].total,
+      totalPages: Math.ceil(countResult.rows[0].total / limit)
+    }
+  };
 }
 
 async function createSupplier(data) {

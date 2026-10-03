@@ -1,9 +1,12 @@
 const supplierService = require("./supplier.service");
+const { parsePagination } = require("../../utils/helpers");
 
 async function getAllSuppliers(req, res, next) {
   try {
-    const suppliers = await supplierService.getAllSuppliers();
-    res.json({ success: true, data: suppliers });
+    const { search } = req.query;
+    const { page, limit } = parsePagination(req.query);
+    const { suppliers, pagination } = await supplierService.getAllSuppliers({ search, page, limit });
+    res.json({ success: true, data: suppliers, pagination });
   } catch (error) {
     next(error);
   }

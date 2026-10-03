@@ -126,16 +126,65 @@ async function getLowStock() {
     const result = await pool.query('SELECT i.product_id, i.current_stock, p.min_stock_level FROM inventory i JOIN products p ON p.id = i.product_id WHERE i.current_stock <= p.min_stock_level');
     return { low_stock_products: result.rows };
 }
-async function getAllInventory() {
-    const result = await pool.query(`
+async function getAllInventory({ search, viewFilter, page = 1, limit = 20 } = {}) {
+    const offset = (page - 1) * limit;
+    
+    let query = `
         SELECT 
             p.id, p.name, p.sku, p.min_stock_level as min,
             i.opening_stock as opening, i.stock_out as sold, i.damaged_stock as damaged, i.current_stock as current
         FROM inventory i
         JOIN products p ON p.id = i.product_id
-        ORDER BY p.name ASC
-    `);
-    return { inventory: result.rows };
+    `;
+    const params = [];
+    const countParams = [];
+    let countQuery = `SELECT COUNT(*)::int AS total FROM inventory i JOIN products p ON p.id = i.product_id`;
+    
+    let whereClauses = [];
+    let countWhereClauses = [];
+
+    if (search && search.trim()) {
+        whereClauses.push(`(p.name ILIKE $1 OR p.sku ILIKE $1)`);
+        countWhereClauses.push(`(p.name ILIKE $1 OR p.sku ILIKE $1)`);
+        params.push(`%${search.trim()}%`);
+        countParams.push(`%${search.trim()}%`);
+    }
+
+    if (viewFilter === "Low Stock") {
+        whereClauses.push(`i.current_stock <= p.min_stock_level`);
+        countWhereClauses.push(`i.current_stock <= p.min_stock_level`);
+    } else if (viewFilter === "Damaged") {
+        whereClauses.push(`i.damaged_stock > 0`);
+        countWhereClauses.push(`i.damaged_stock > 0`);
+    }
+
+    if (whereClauses.length > 0) {
+        query += ` WHERE ` + whereClauses.join(' AND ');
+        countQuery += ` WHERE ` + countWhereClauses.join(' AND ');
+    }
+
+    let orderBy = ` ORDER BY p.name ASC`;
+    if (viewFilter === "Damaged") {
+        orderBy = ` ORDER BY i.damaged_stock DESC, p.name ASC`;
+    }
+
+    query += `${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
+    const [result, countResult] = await Promise.all([
+        pool.query(query, params),
+        pool.query(countQuery, countParams)
+    ]);
+
+    return {
+        inventory: result.rows,
+        pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total: countResult.rows[0].total,
+            totalPages: Math.ceil(countResult.rows[0].total / limit)
+        }
+    };
 }
 
 module.exports = {

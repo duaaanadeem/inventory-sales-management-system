@@ -5,6 +5,8 @@ import Modal from "@/src/components/ui/Modal";
 import { customersApi } from "@/src/lib/api";
 import type { Customer, CustomerPurchase } from "@/src/lib/api";
 import { Search, Plus, Loader2 } from "lucide-react";
+import Pagination from "@/src/components/ui/Pagination";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
 
 const toCurrency = (v: string | number) =>
   `$${Number(v || 0).toFixed(2)}`;
@@ -15,7 +17,9 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [customers, setCustomers] = useState<Customer[] | null>(null);
+  const [totalItems, setTotalItems] = useState(0);
   const [loadError, setLoadError] = useState("");
+  const { page, limit, setPage, setLimit } = useUrlPagination(20);
 
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -33,8 +37,9 @@ export default function CustomersPage() {
 
   async function loadCustomers() {
     try {
-      const res = await customersApi.list({ search: debouncedSearch, limit: 50 });
+      const res = await customersApi.list({ search: debouncedSearch, page, limit });
       setCustomers(res.customers);
+      setTotalItems((res as any).pagination?.total || res.customers?.length || 0);
       setLoadError("");
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Could not load customers.");
@@ -44,7 +49,7 @@ export default function CustomersPage() {
   useEffect(() => {
     loadCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+  }, [debouncedSearch, page, limit]);
 
   async function openPurchases(customer: Customer) {
     setSelected(customer);
@@ -103,7 +108,7 @@ export default function CustomersPage() {
               type="search"
               placeholder="Search by name, email or phone..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="input pl-10"
             />
           </div>
@@ -150,6 +155,17 @@ export default function CustomersPage() {
                 render: (r) => <span className="font-semibold">{toCurrency(r.total_spending)}</span>,
               },
             ]}
+          />
+        )}
+        
+        {list.length > 0 && (
+          <Pagination
+            page={page}
+            limit={limit}
+            totalItems={totalItems}
+            totalPages={Math.ceil(totalItems / limit)}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
           />
         )}
       </div>

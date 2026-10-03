@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/api";
 import apiClient from "@/src/lib/apiClient";
+import Pagination from "@/src/components/ui/Pagination";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
 
 interface Product {
   id: number;
@@ -105,6 +107,9 @@ export default function POSPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceResponse["invoice"] | null>(null);
   const [isLoadingSales, setIsLoadingSales] = useState(false);
   const [isLoadingSaleDetails, setIsLoadingSaleDetails] = useState(false);
+
+  const { page, limit, setPage, setLimit } = useUrlPagination(10);
+  const [totalItems, setTotalItems] = useState(0);
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
@@ -963,3 +968,8 @@ export default function POSPage() {
     </DashboardLayout>
   );
 }
+
+
+
+
+

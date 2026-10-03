@@ -210,3 +210,4 @@ export const reportsApi = {
   suppliers: (from: string, to: string) => 
     request(`/reports/suppliers?from=${from}&to=${to}`),
 };
+

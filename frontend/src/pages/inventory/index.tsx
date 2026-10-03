@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import apiClient from "@/src/lib/apiClient";
 import { useToast } from "@/src/context/ToastContext";
+import Pagination from "@/src/components/ui/Pagination";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
@@ -26,6 +28,9 @@ export default function InventoryPage() {
   const [error, setError] = useState<string | null>(null);
   
   const { showToast } = useToast();
+  
+  const { page, limit, setPage, setLimit } = useUrlPagination(20);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Modal form state
   const [productId, setProductId] = useState("");
@@ -39,11 +44,13 @@ export default function InventoryPage() {
     setError(null);
     try {
       const [invRes, sumRes] = await Promise.all([
-        apiClient.get("/inventory"),
+        apiClient.get(`/inventory?search=${encodeURIComponent(search)}&viewFilter=${encodeURIComponent(viewFilter)}&page=${page}&limit=${limit}`),
         apiClient.get("/inventory/summary")
       ]);
       
-      setInventory(invRes.data.data.inventory || []);
+      const invData = invRes.data.data;
+      setInventory(invData.inventory || []);
+      setTotalItems(invData.pagination?.total || invData.inventory?.length || 0);
       setSummary(sumRes.data.data || { total_products: 0, total_stock_items: 0, low_stock_count: 0 });
     } catch (error) {
       console.error("Failed to fetch inventory:", error);
@@ -54,8 +61,11 @@ export default function InventoryPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search, viewFilter, page, limit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,23 +99,7 @@ export default function InventoryPage() {
     }
   };
 
-  const filtered = inventory.filter((i) => {
-    const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase()) ||
-                          i.sku.toLowerCase().includes(search.toLowerCase());
-    
-    let matchesView = true;
-    if (viewFilter === "Low Stock") {
-      matchesView = i.current <= i.min;
-    } else if (viewFilter === "Damaged") {
-      matchesView = i.damaged > 0;
-    }
-
-    return matchesSearch && matchesView;
-  });
-
-  if (viewFilter === "Damaged") {
-    filtered.sort((a, b) => b.damaged - a.damaged);
-  }
+  const filtered = inventory; // Filtered and sorted by backend
 
   return (
     <DashboardLayout>
@@ -207,14 +201,14 @@ export default function InventoryPage() {
                   type="search"
                   placeholder="Search inventory by name or SKU..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   className="input pl-10"
                 />
               </div>
               <select
                 className="input sm:w-48"
                 value={viewFilter}
-                onChange={(e) => setViewFilter(e.target.value)}
+                onChange={(e) => { setViewFilter(e.target.value); setPage(1); }}
               >
                 <option value="All">All Items</option>
                 <option value="Low Stock">Low Stock</option>
@@ -249,6 +243,17 @@ export default function InventoryPage() {
                 },
               ]}
             />
+
+            {inventory.length > 0 && (
+              <Pagination
+                page={page}
+                limit={limit}
+                totalItems={totalItems}
+                totalPages={Math.ceil(totalItems / limit)}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
+              />
+            )}
           </>
         )}
       </div>

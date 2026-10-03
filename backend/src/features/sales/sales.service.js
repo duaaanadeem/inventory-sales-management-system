@@ -214,22 +214,36 @@ async function completeSale({ customerId, paymentMethod, items, discount, staffI
 }
 
 // Sales history with an item count and per-sale item revenue.
-async function listSales() {
-    const result = await pool.query(
-        `SELECT s.id, s.customer_id, c.name AS customer_name, s.staff_id,
-                s.subtotal, s.discount, s.tax, s.total, s.payment_method,
-                s.status, s.created_at, i.invoice_number,
-                COALESCE(SUM(si.quantity), 0)::int AS item_count,
-                COALESCE(SUM(si.line_total), 0)::numeric(12,2) AS item_revenue
-         FROM sales s
-         LEFT JOIN customers c ON c.id = s.customer_id
-         LEFT JOIN invoices i ON i.sale_id = s.id
-         LEFT JOIN sale_items si ON si.sale_id = s.id
-         GROUP BY s.id, c.name, i.invoice_number
-         ORDER BY s.created_at DESC`
-    );
+async function listSales({ page = 1, limit = 20 } = {}) {
+    const offset = (page - 1) * limit;
 
-    return result.rows;
+    const [result, countResult] = await Promise.all([
+        pool.query(
+            `SELECT s.id, s.customer_id, c.name AS customer_name, s.staff_id,
+                    s.subtotal, s.discount, s.tax, s.total, s.payment_method,
+                    s.status, s.created_at, i.invoice_number,
+                    COALESCE(SUM(si.quantity), 0)::int AS item_count,
+                    COALESCE(SUM(si.line_total), 0)::numeric(12,2) AS item_revenue
+             FROM sales s
+             LEFT JOIN customers c ON c.id = s.customer_id
+             LEFT JOIN invoices i ON i.sale_id = s.id
+             LEFT JOIN sale_items si ON si.sale_id = s.id
+             GROUP BY s.id, c.name, i.invoice_number
+             ORDER BY s.created_at DESC
+             LIMIT $1 OFFSET $2`, [limit, offset]
+        ),
+        pool.query(`SELECT COUNT(*)::int AS total FROM sales`)
+    ]);
+
+    return {
+        sales: result.rows,
+        pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total: countResult.rows[0].total,
+            totalPages: Math.ceil(countResult.rows[0].total / limit)
+        }
+    };
 }
 
 // A single sale plus its item snapshots.

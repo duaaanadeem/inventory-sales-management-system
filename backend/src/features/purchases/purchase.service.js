@@ -1,13 +1,53 @@
 const pool = require("../../config/pg-db");
 
-async function getAllPurchases() {
-  const result = await pool.query(`
+async function getAllPurchases({ search, status, page = 1, limit = 20 } = {}) {
+  const offset = (page - 1) * limit;
+
+  let query = `
     SELECT p.*, s.name as supplier_name 
     FROM purchases p
     JOIN suppliers s ON s.id = p.supplier_id
-    ORDER BY p.created_at DESC
-  `);
-  return result.rows;
+  `;
+  const params = [];
+  const whereClauses = [];
+
+  if (search && search.trim()) {
+    whereClauses.push(`(s.name ILIKE $${params.length + 1} OR 'PO-' || lpad(p.id::text, 4, '0') ILIKE $${params.length + 1})`);
+    params.push(`%${search.trim()}%`);
+  }
+
+  if (status && status !== 'All') {
+    const statusMap = { "Paid": "completed", "Pending": "pending" };
+    const mappedStatus = statusMap[status] || status;
+    whereClauses.push(`p.status = $${params.length + 1}`);
+    params.push(mappedStatus);
+  }
+
+  if (whereClauses.length > 0) {
+    query += ` WHERE ` + whereClauses.join(' AND ');
+  }
+
+  const countQuery = `SELECT COUNT(*)::int AS total FROM purchases p JOIN suppliers s ON s.id = p.supplier_id` + 
+                     (whereClauses.length > 0 ? ` WHERE ` + whereClauses.join(' AND ') : '');
+
+  query += ` ORDER BY p.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  
+  const queryParams = [...params, limit, offset];
+
+  const [result, countResult] = await Promise.all([
+    pool.query(query, queryParams),
+    pool.query(countQuery, params)
+  ]);
+  
+  return {
+    purchases: result.rows,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total: countResult.rows[0].total,
+      totalPages: Math.ceil(countResult.rows[0].total / limit)
+    }
+  };
 }
 
 async function getPurchaseItems(purchaseId) {

@@ -7,6 +7,8 @@ import ProductForm from "@/src/components/forms/ProductForm";
 import { API_BASE_URL, createProduct, updateProduct, deleteProduct, getCategories, getProducts, type Category, type Product, type ProductPayload } from "@/lib/api";
 import { ImageIcon, Plus, RefreshCw, Search, Trash2, Edit2 } from "lucide-react";
 import { useToast } from "@/src/context/ToastContext";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
+import Pagination from "@/src/components/ui/Pagination";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -21,6 +23,9 @@ export default function ProductsPage() {
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
 
+  const { page, limit, setPage, setLimit } = useUrlPagination(20);
+  const [totalItems, setTotalItems] = useState(0);
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
@@ -31,11 +36,12 @@ export default function ProductsPage() {
     setError("");
     try {
       const [productResponse, categoryResponse] = await Promise.all([
-        getProducts({ search, category }),
+        getProducts({ search, category, page, limit }),
         getCategories(),
       ]);
-      setProducts(productResponse.data);
-      setCategories(categoryResponse.data);
+      setProducts(productResponse.data || []);
+      setTotalItems(productResponse.pagination?.total || productResponse.data?.length || 0);
+      setCategories(categoryResponse.data || []);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load products");
     } finally {
@@ -48,7 +54,7 @@ export default function ProductsPage() {
       startTransition(() => { void loadData(); });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search, category]);
+  }, [search, category, page, limit]);
 
   const handleCreate = async (payload: ProductPayload) => {
     setIsSubmitting(true);
@@ -123,12 +129,12 @@ export default function ProductsPage() {
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
               placeholder="Search by name or SKU..."
               className="input pl-10"
             />
           </div>
-          <select value={category} onChange={(event) => setCategory(event.target.value)} className="input sm:w-48">
+          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} className="input sm:w-48">
             <option value="">All Categories</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>{item.name}</option>
@@ -207,6 +213,17 @@ export default function ProductsPage() {
             },
           ]}
         />}
+
+        {products.length > 0 && (
+          <Pagination
+            page={page}
+            limit={limit}
+            totalItems={totalItems}
+            totalPages={Math.ceil(totalItems / limit)}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
+          />
+        )}
       </div>
       <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingProduct ? "Edit Product" : "Add Product"}>
         <ProductForm 

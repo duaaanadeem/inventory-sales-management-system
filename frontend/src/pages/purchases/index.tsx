@@ -5,6 +5,8 @@ import Modal from "@/src/components/ui/Modal";
 import { Search, Plus, Loader2, CheckCircle } from "lucide-react";
 import apiClient from "@/src/lib/apiClient";
 import { useToast } from "@/src/context/ToastContext";
+import Pagination from "@/src/components/ui/Pagination";
+import { useUrlPagination } from "@/src/hooks/useUrlPagination";
 
 export default function PurchasesPage() {
   const [search, setSearch] = useState("");
@@ -19,6 +21,9 @@ export default function PurchasesPage() {
   const [error, setError] = useState("");
   
   const { showToast } = useToast();
+  
+  const { page, limit, setPage, setLimit } = useUrlPagination(20);
+  const [totalItems, setTotalItems] = useState(0);
   
   // New PO Form State
   const [supplierId, setSupplierId] = useState("");
@@ -40,7 +45,7 @@ export default function PurchasesPage() {
     setError("");
     try {
       const [purchasesRes, suppliersRes, productsRes] = await Promise.all([
-        apiClient.get("/purchases"),
+        apiClient.get(`/purchases?search=${encodeURIComponent(search)}&status=${encodeURIComponent(statusFilter)}&page=${page}&limit=${limit}`),
         apiClient.get("/suppliers"),
         apiClient.get("/products")
       ]);
@@ -49,14 +54,17 @@ export default function PurchasesPage() {
       const suppliersData = suppliersRes.data;
       const productsData = productsRes.data;
 
-      if (purchasesData.success) setPurchases(purchasesData.data);
+      if (purchasesData.success) {
+        setPurchases(purchasesData.data || []);
+        setTotalItems(purchasesData.pagination?.total || purchasesData.data?.length || 0);
+      }
       if (suppliersData.success) {
         setSuppliers(suppliersData.data);
-        if (suppliersData.data.length > 0) setSupplierId(suppliersData.data[0].id);
+        if (suppliersData.data.length > 0 && !supplierId) setSupplierId(suppliersData.data[0].id);
       }
       if (productsData.success) {
         setProducts(productsData.data);
-        if (productsData.data.length > 0) setProductId(productsData.data[0].id);
+        if (productsData.data.length > 0 && !productId) setProductId(productsData.data[0].id);
       }
     } catch (err) {
       setError("Unable to connect to the server.");
@@ -66,8 +74,11 @@ export default function PurchasesPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search, statusFilter, page, limit]);
 
   const handleCreatePO = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,17 +189,7 @@ export default function PurchasesPage() {
     }
   };
 
-  const filtered = purchases.filter((p) => {
-    const poNumber = `PO-${p.id.toString().padStart(4, '0')}`;
-    const matchesSearch =
-      poNumber.toLowerCase().includes(search.toLowerCase()) ||
-      p.supplier_name?.toLowerCase().includes(search.toLowerCase());
-    
-    const statusMap: Record<string, string> = { "Paid": "completed", "Pending": "pending" };
-    const matchesStatus = statusFilter === "All" || p.status === statusMap[statusFilter];
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filtered = purchases; // Handled by backend
 
   return (
     <DashboardLayout>
@@ -227,14 +228,14 @@ export default function PurchasesPage() {
               type="search"
               placeholder="Search by PO number or supplier..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="input pl-10"
             />
           </div>
           <select
             className="input sm:w-40"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           >
             <option>All</option>
             <option>Paid</option>
@@ -302,6 +303,17 @@ export default function PurchasesPage() {
                 )
               }
             ]}
+          />
+        )}
+
+        {purchases.length > 0 && (
+          <Pagination
+            page={page}
+            limit={limit}
+            totalItems={totalItems}
+            totalPages={Math.ceil(totalItems / limit)}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
           />
         )}
       </div>
