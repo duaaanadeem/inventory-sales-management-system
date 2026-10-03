@@ -48,7 +48,7 @@
 
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import Link from "next/link";
 import apiClient from "@/src/lib/apiClient";
 import {

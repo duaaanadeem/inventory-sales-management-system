@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/router";
 import {
   LayoutDashboard,
   Package,
@@ -64,7 +64,8 @@ export default function Sidebar() {
       isHydrated = true;
     }
   }, []);
-  const pathname = usePathname();
+  const router = useRouter();
+  const pathname = router.pathname;
 
   const allowedStaffPages = [
     "/dashboard",
@@ -155,3 +156,4 @@ export default function Sidebar() {
     </>
   );
 }
+

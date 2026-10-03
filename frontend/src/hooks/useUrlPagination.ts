@@ -11,20 +11,22 @@ export function useUrlPagination(defaultLimit = 20) {
   // We only want to push to URL if the component asks to change it.
   const setPage = useCallback(
     (newPage: number) => {
+      if (page === newPage) return;
       const query = { ...router.query, page: String(newPage) };
       router.push({ pathname: router.pathname, query }, undefined, { shallow: true });
     },
-    [router]
+    [router, page]
   );
 
   const setLimit = useCallback(
     (newLimit: number) => {
-      // When changing the limit, we should reset the page to 1
+      if (limit === newLimit) return;
       const query = { ...router.query, limit: String(newLimit), page: "1" };
       router.push({ pathname: router.pathname, query }, undefined, { shallow: true });
     },
-    [router]
+    [router, limit]
   );
 
   return { page, limit, setPage, setLimit };
 }
+

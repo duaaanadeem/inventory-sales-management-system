@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
@@ -50,3 +50,4 @@ export default function DashboardLayout({
     </div>
   );
 }
+

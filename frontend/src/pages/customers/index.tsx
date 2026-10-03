@@ -108,7 +108,7 @@ export default function CustomersPage() {
               type="search"
               placeholder="Search by name, email or phone..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => setSearch(e.target.value)}
               className="input pl-10"
             />
           </div>
@@ -278,3 +278,4 @@ export default function CustomersPage() {
     </DashboardLayout>
   );
 }
+

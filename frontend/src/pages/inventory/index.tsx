@@ -201,14 +201,14 @@ export default function InventoryPage() {
                   type="search"
                   placeholder="Search inventory by name or SKU..."
                   value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  onChange={(e) => setSearch(e.target.value)}
                   className="input pl-10"
                 />
               </div>
               <select
                 className="input sm:w-48"
                 value={viewFilter}
-                onChange={(e) => { setViewFilter(e.target.value); setPage(1); }}
+                onChange={(e) => setViewFilter(e.target.value)}
               >
                 <option value="All">All Items</option>
                 <option value="Low Stock">Low Stock</option>

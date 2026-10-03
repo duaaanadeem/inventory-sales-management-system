@@ -147,7 +147,7 @@ export default function SuppliersPage() {
               type="search"
               placeholder="Search suppliers..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => setSearch(e.target.value)}
               className="input pl-10"
             />
           </div>

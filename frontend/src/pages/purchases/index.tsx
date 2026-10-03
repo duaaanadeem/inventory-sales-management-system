@@ -228,14 +228,14 @@ export default function PurchasesPage() {
               type="search"
               placeholder="Search by PO number or supplier..."
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => setSearch(e.target.value)}
               className="input pl-10"
             />
           </div>
           <select
             className="input sm:w-40"
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option>All</option>
             <option>Paid</option>

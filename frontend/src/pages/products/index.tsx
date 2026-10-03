@@ -129,12 +129,12 @@ export default function ProductsPage() {
             <input
               type="search"
               value={search}
-              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by name or SKU..."
               className="input pl-10"
             />
           </div>
-          <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} className="input sm:w-48">
+          <select value={category} onChange={(event) => setCategory(event.target.value)} className="input sm:w-48">
             <option value="">All Categories</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>{item.name}</option>
