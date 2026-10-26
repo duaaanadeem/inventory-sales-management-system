@@ -1,11 +1,39 @@
 import AuthLayout from "@/src/components/layout/AuthLayout";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { Boxes, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import apiClient from "@/src/lib/apiClient";
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+
+  const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await apiClient.post("/auth/signup", { fullName, email, password });
+      await router.push("/login?registered=1");
+    } catch (requestError: any) {
+      setError(requestError.response?.data?.message || "Unable to create account.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <AuthLayout>
@@ -23,7 +51,8 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <form className="space-y-4">
+        {error && <p className="mb-4 rounded-md bg-rose-50 p-3 text-sm text-rose-600" role="alert">{error}</p>}
+        <form className="space-y-4" onSubmit={handleSignup}>
           {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -38,6 +67,8 @@ export default function SignupPage() {
                 type="text"
                 placeholder="John Doe"
                 className="input pl-10"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
                 required
               />
             </div>
@@ -57,6 +88,8 @@ export default function SignupPage() {
                 type="email"
                 placeholder="you@example.com"
                 className="input pl-10"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 required
               />
             </div>
@@ -76,6 +109,9 @@ export default function SignupPage() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Create a password"
                 className="input pl-10 pr-10"
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
                 required
               />
               <button
@@ -103,6 +139,9 @@ export default function SignupPage() {
                 type={showConfirm ? "text" : "password"}
                 placeholder="Confirm your password"
                 className="input pl-10 pr-10"
+                minLength={8}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
                 required
               />
               <button
@@ -135,8 +174,8 @@ export default function SignupPage() {
             </span>
           </label>
 
-          <button type="submit" className="btn-primary w-full">
-            Create Account
+          <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
+            {isSubmitting ? "Creating account..." : "Create Account"}
           </button>
         </form>
 

@@ -1,7 +1,7 @@
 import type { AppNotification, ActivityEntry, EntityType } from "./mockData";
 
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  process.env.NEXT_PUBLIC_API_URL || "/api";
 
 import apiClient from "@/src/lib/apiClient";
 
@@ -210,4 +210,3 @@ export const reportsApi = {
   suppliers: (from: string, to: string) => 
     request(`/reports/suppliers?from=${from}&to=${to}`),
 };
-

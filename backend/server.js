@@ -10,9 +10,23 @@ const errorMiddleware = require("./src/middleware/errorMiddleware");
 
 const app = express();
 const cookieParser = require("cookie-parser");
+const allowedOrigins = new Set([
+  "http://localhost:3000",
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.trim().replace(/\/+$/, "")] : []),
+  ...(process.env.FRONTEND_URLS || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean),
+]);
+
 app.use(cors({
-    origin: 'http://localhost:3000', // Update this based on the frontend URL
-    credentials: true
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Origin is not allowed by CORS"));
+  },
+  credentials: true,
 }));
 app.use(express.json());
 app.use(cookieParser());
@@ -64,11 +78,36 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Server is healthy",
-  });
+  const pool = require("./src/config/pg-db");
+  pool.query("SELECT 1")
+    .then(() => res.json({ success: true, message: "Server and database are healthy" }))
+    .catch((error) => {
+      console.error("Health check database error:", error);
+      res.status(503).json({ success: false, message: "Database is unavailable" });
+    });
 });
+
+const PORT = process.env.PORT || 5000;
+
+const start = async () => {
+  const requiredEnvironment = ["DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
+  const missingEnvironment = requiredEnvironment.filter((key) => !process.env[key]);
+  if (missingEnvironment.length) {
+    throw new Error(`Missing required environment variables: ${missingEnvironment.join(", ")}`);
+  }
+  const weakSecrets = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"].filter(
+    (key) => process.env[key].length < 32
+  );
+  if (weakSecrets.length) {
+    throw new Error(`JWT secrets must be at least 32 characters: ${weakSecrets.join(", ")}`);
+  }
+
+  const pool = require("./src/config/pg-db");
+  await pool.query("SELECT 1");
+  return app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+};
 
 app.use((req, res) => {
   res.status(404).json({
@@ -79,11 +118,10 @@ app.use((req, res) => {
 
 app.use(errorMiddleware);
 
-const PORT = process.env.PORT || 5000;
-
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  start().catch((error) => {
+    console.error("Server startup failed:", error.message);
+    process.exitCode = 1;
   });
 }
 

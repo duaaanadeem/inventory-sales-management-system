@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 // Setup Nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -15,12 +16,13 @@ const transporter = nodemailer.createTransport({
 
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
-        if (!email || !password) {
+        const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+        const password = req.body.password;
+        if (!email || typeof password !== 'string' || !password) {
             return res.status(400).json({ success: false, message: 'Email and password are required.' });
         }
 
-        const result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_active = TRUE', [email.toLowerCase()]);
+        const result = await pool.query('SELECT * FROM users WHERE email = $1 AND is_active = TRUE', [email]);
         if (result.rows.length === 0) {
             return res.status(401).json({ success: false, message: 'Invalid credentials or inactive account.' });
         }
@@ -68,6 +70,40 @@ const login = async (req, res) => {
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ success: false, message: 'Internal server error.' });
+    }
+};
+
+const signup = async (req, res) => {
+    const fullName = typeof req.body.fullName === 'string' ? req.body.fullName.trim() : '';
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = req.body.password;
+
+    if (!fullName || fullName.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ success: false, message: 'A valid name and email are required.' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+    }
+
+    try {
+        const passwordHash = await bcrypt.hash(password, 12);
+        const result = await pool.query(
+            `INSERT INTO users (full_name, email, password_hash, role)
+             VALUES ($1, $2, $3, 'staff')
+             RETURNING id, full_name, email, role`,
+            [fullName, email, passwordHash]
+        );
+        return res.status(201).json({
+            success: true,
+            message: 'Account created successfully. You can now sign in.',
+            user: result.rows[0],
+        });
+    } catch (error) {
+        if (error.code === '23505') {
+            return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+        }
+        console.error('Signup error:', error);
+        return res.status(500).json({ success: false, message: 'Unable to create account.' });
     }
 };
 
@@ -131,7 +167,7 @@ const forgotPassword = async (req, res) => {
         );
 
         // In a real app, this would be a frontend URL like: http://localhost:3000/reset-password?token=${resetToken}&email=${email}
-        const resetLink = `http://localhost:3000/reset-password?token=${resetToken}&email=${email.toLowerCase()}`;
+        const resetLink = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email.toLowerCase())}`;
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
@@ -187,6 +223,7 @@ const resetPassword = async (req, res) => {
 
 module.exports = {
     login,
+    signup,
     logout,
     refresh,
     forgotPassword,

@@ -4,6 +4,7 @@ const authController = require('./auth.controller');
 const { verifyToken, requireRole } = require('../../middleware/auth');
 
 router.post('/login', authController.login);
+router.post('/signup', authController.signup);
 router.post('/logout', authController.logout);
 router.post('/refresh', authController.refresh);
 router.post('/forgot-password', authController.forgotPassword);

@@ -88,7 +88,6 @@ interface InvoiceResponse {
   sale: SaleDetails;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const TAX_RATE = Number(process.env.NEXT_PUBLIC_TAX_RATE || 0);
 
 const getErrorMessage = (response: ApiResponse<unknown>) =>
@@ -127,10 +126,6 @@ export default function POSPage() {
   const [showAddForm, setShowAddForm] = useState(false);
 
   
-  const CUST_URL = process.env.NEXT_PUBLIC_API_URL
-    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, "/customers")
-    : "http://localhost:5000/customers";
-
   const loadCustomers = async (q = "") => {
     setIsLoadingCustomers(true);
     try {
@@ -145,7 +140,7 @@ export default function POSPage() {
     if (!newCustName.trim()) return;
     setIsAddingCustomer(true);
     try {
-      const { data } = await apiClient.post(CUST_URL, { name: newCustName.trim(), phone: newCustPhone.trim() || null, email: newCustEmail.trim() || null });
+      const { data } = await apiClient.post("/customers", { name: newCustName.trim(), phone: newCustPhone.trim() || null, email: newCustEmail.trim() || null });
       if (data.success && data.data) {
         setSelectedCustomer(data.data);
         setCustomerModalOpen(false);
@@ -938,7 +933,6 @@ export default function POSPage() {
     </DashboardLayout>
   );
 }
-
 
 
 
