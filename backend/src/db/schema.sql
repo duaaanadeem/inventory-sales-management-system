@@ -117,6 +117,18 @@ CREATE TRIGGER trg_inventory_updated_at
   BEFORE UPDATE ON inventory
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE OR REPLACE FUNCTION create_inventory_row()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO inventory (product_id) VALUES (NEW.id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_products_create_inventory
+  AFTER INSERT ON products
+  FOR EACH ROW EXECUTE FUNCTION create_inventory_row();
+
 CREATE TABLE stock_history (
   id                SERIAL PRIMARY KEY,
   product_id        INT NOT NULL REFERENCES products(id),
@@ -288,8 +300,13 @@ CREATE TABLE customers (
   email           VARCHAR(150),
   address         VARCHAR(255),
   total_spending  NUMERIC(12,2) NOT NULL DEFAULT 0,  -- kept as a running total (denormalized) so Dashboard/Customer search don't need to SUM(sales) on every page load; kept correct via trigger below, not app code
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TRIGGER trg_customers_updated_at
+  BEFORE UPDATE ON customers
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE INDEX idx_customers_name ON customers (name);
 -- Customer search ("Admin should be able to search customers") hits this.
